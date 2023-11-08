@@ -30,15 +30,6 @@ def list2dict(mylist):
         collection[mylist[i]] = 0
     return collection
 
-# parse tree sequence provenance for sigma and map width
-def parse_provenance(ts, param):
-    prov = str(ts.provenance(0)).split()
-    for i in range(len(prov)):
-        if param+"=" in prov[i]:
-            val = float(prov[i].split("=")[1].split("\"")[0])
-            break
-    return(val)
-            
 # read in the training targets and input paths from a preprocessed, hierarchical folder
 def dict_from_preprocessed(path):
     targets,genos,locs,counter={},{},{},0

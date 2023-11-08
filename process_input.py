@@ -154,15 +154,28 @@ def ibd(genos, coords, phase, num_snps):
 
     
 # just what it sounds like
-def cookie_cutter(data, outline, fill=0.0):
+def cookie_cutter(data, outline, fill=None, fxn=None):
+    # if 2d, add temporary dim    
     if len(data.shape) == 2:
-        data = np.reshape(data,(data.shape[0],data.shape[1],1))  # add dim
-    for i in range(data.shape[0]):       
-        for j in range(data.shape[1]):   
-            if outline[i,j] == 0:
-                data[i,j,:] = fill
+        data = np.reshape(data,(data.shape[0],data.shape[1],1))
+
+    # apply mask
+    if fill is not None:
+        for i in range(data.shape[0]):       
+            for j in range(data.shape[1]):   
+                if outline[i,j] == 0:
+                    data[i,j,:] = fill
+
+    # apply log or other fxn
+    if fxn is not None:
+        for i in range(data.shape[0]):
+            for j in range(data.shape[1]):
+                if outline[i,j] == 1:
+                    data[i,j,:] = fxn(data[i,j,:])
+
+    # remove extra dim if it was 2d 
     if data.shape[2] == 1:
-        data = np.reshape(data,(data.shape[0],data.shape[1]))  # remove extra dim
+        data = np.reshape(data,(data.shape[0],data.shape[1])) 
     return data
 
 

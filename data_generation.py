@@ -208,13 +208,8 @@ class DataGenerator(tf.keras.utils.Sequence):
             tss.append(tskit.load(fp))
         
         # for converting from SLiM map to new, pixelated map size
-        if self.slim_width is not None:
-            slim_width = float(self.slim_width)
-        else:
-            slim_width = parse_provenance(tss[0], "W")  # SLIM map width  
-        # (unindent)
         W = float(self.map_width)  # new map width, e.g., pixels
-        scaling_factor = slim_width / W
+        scaling_factor = self.slim_width / W
 
         # crop map
         sampled_inds = []

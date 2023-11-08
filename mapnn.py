@@ -592,9 +592,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
                 trueval[:,:,t] = (trueval[:,:,t] * mean_sd[t][1]) + mean_sd[t][0]
                 prediction[:,:,t] = (prediction[:,:,t] * training_mean_sd[t][1]) + training_mean_sd[t][0]
             trueval = np.exp(trueval)
-            trueval -= 1
             prediction = np.exp(prediction)
-            prediction -= 1
             
             # apply habitat maask (up front, since you add +1 below to avoid undefined RAE)
             if args.habitat_map is not None:
@@ -610,11 +608,11 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
             np.save(args.out + "/Test_" + str(args.seed) + "/mapNN_" + simid + "_pred.npy", prediction)
 
             # calc. error
-            #mrae_0 = np.sum(abs(trueval[:,:,0]-prediction[:,:,0])/trueval[:,:,0]) 
-            mrae_0 = np.sum(abs((trueval[:,:,0]+1)-(prediction[:,:,0]+1)) / (trueval[:,:,0]+1)) # hack to get MRAE with 0 values
+            mrae_0 = np.sum(abs(trueval[:,:,0]-prediction[:,:,0])/trueval[:,:,0]) 
+            #mrae_0 = np.sum(abs((trueval[:,:,0]+1)-(prediction[:,:,0]+1)) / (trueval[:,:,0]+1)) # hack to get MRAE with 0 values
             mrae_0 /= relevant_pixels
-            #mrae_1 = np.sum(abs(trueval[:,:,1]-prediction[:,:,1])/trueval[:,:,1])
-            mrae_1 = np.sum(abs((trueval[:,:,0]+0.001)-(prediction[:,:,0]+0.001)) / (trueval[:,:,0]+0.001))
+            mrae_1 = np.sum(abs(trueval[:,:,1]-prediction[:,:,1])/trueval[:,:,1])
+            #mrae_1 = np.sum(abs((trueval[:,:,0]+0.001)-(prediction[:,:,0]+0.001)) / (trueval[:,:,0]+0.001))
             mrae_1 /= relevant_pixels
             with open(args.out + "/Test_" + str(args.seed) + "/mapNN_" + str(simid) + "_error.txt", "a") as out_f:
                 out_f.write(str(mrae_0) + "\t" + str(mrae_1) + "\n")
@@ -891,7 +889,6 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
         for t in range(2):
             predictions[:,:,:,t] = (predictions[:,:,:,t] * mean_sd[t][1]) + mean_sd[t][0]
         predictions = np.exp(predictions)
-        predictions -= 1                              
 
         # calc mean and var maps
         prediction = np.mean(predictions, axis=0)
@@ -905,7 +902,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
 
             # apply mask
             if args.habitat_map is not None:
-                out_map = cookie_cutter(out_map, habitat_map)
+                out_map = cookie_cutter(out_map, habitat_map, fill=0.0)
                 relevant_pixels = np.sum(habitat_map)
             else:
                 relevant_pixels = map_width**2 
@@ -1073,10 +1070,10 @@ def preprocess():
         for i in range(total_sims):
             print("getting mean from training, on sim", i)
             arr = read_map(maps[i], args.map_width)
-            arr += 1  # addressing 0-values, particularly in tracked-density maps
-            arr = np.log(arr)
-            if args.habitat_map != None:
-                arr = cookie_cutter(arr, habitat_map, fill=np.nan)
+            if args.habitat_map != None: # 
+                arr = cookie_cutter(arr, habitat_map, fill=np.nan, fxn=np.log)
+            else:  # this strategy avoids log(0)'s
+                arr = np.log(arr)      
             # (unindent)
             means_summed_disp += np.nansum(arr[:,:,0])
             means_summed_dens += np.nansum(arr[:,:,1])
@@ -1090,10 +1087,10 @@ def preprocess():
         for i in range(total_sims):
             print("getting sd from training, on sim", i)
             arr = read_map(maps[i], args.map_width)
-            arr += 1  # addressing 0-values, particularly in tracked-density maps            
-            arr = np.log(arr)
             if args.habitat_map != None:
-                arr = cookie_cutter(arr, habitat_map, fill=np.nan)
+                arr = cookie_cutter(arr, habitat_map, fill=np.nan, fxn=np.log)
+            else:  # this strategy avoids log(0)'s
+                arr = np.log(arr)
             # (unindent)
             sd_summed_disp += np.nansum((arr[:,:,0] - mean_disp)**2)
             sd_summed_dens += np.nansum((arr[:,:,1] - mean_dens)**2)
@@ -1133,7 +1130,6 @@ def preprocess():
             if os.path.isfile(genofile+".npy") is True and os.path.isfile(locfile+".npy") is True: # only add map if inputs successful
                 if os.path.isfile(mapfile+".npy") is False:
                     target = read_map(maps[i], args.map_width)
-                    target += 1  # addressing 0-values, particularly in tracked-density maps
                     target = np.log(target)
                     for t in range(2):
                         target[:,:,t] = (target[:,:,t] - stats[t][0]) / stats[t][1]
@@ -1149,7 +1145,6 @@ def preprocess():
         if os.path.isfile(genofile+".npy") is True and os.path.isfile(locfile+".npy") is True: # only add map if inputs successful
             if os.path.isfile(mapfile+".npy") is False:
                 target = read_map(maps[args.simid-1], args.map_width)
-                target += 1  # addressing 0-values, particularly in tracked-density maps
                 target = np.log(target)
                 for t in range(2):
                     target[:,:,t] = (target[:,:,t] - stats[t][0]) / stats[t][1]   
@@ -1231,10 +1226,10 @@ def preprocess_density_grid():
                             max_disp = np.max(arr[:,:,0])
                         if np.max(arr[:,:,1]) > max_dens:
                             max_dens = np.max(arr[:,:,1])
-                        arr += 1
-                        arr = np.log(arr)
                         if args.habitat_map != None:
-                            arr = cookie_cutter(arr, habitat_map, fill=0)
+                            arr = cookie_cutter(arr, habitat_map, fill=0.0, fxn=np.log)
+                        else:  # this strategy avoids log(0)'s
+                            arr = np.log(arr)
                         # (unindent)                                                       
                         means_summed_disp += np.nansum(arr[:,:,0])
                         means_summed_dens += np.nansum(arr[:,:,1])
@@ -1249,10 +1244,10 @@ def preprocess_density_grid():
                     arrpath = os.path.join(args.out,"Maps",str(args.seed),str(i)+".raw.npy") 
                     if os.path.isfile(arrpath):
                         arr = np.load(arrpath)
-                        arr += 1
-                        arr = np.log(arr)
                         if args.habitat_map != None:
-                            arr = cookie_cutter(arr, habitat_map, fill=np.nan)
+                            arr = cookie_cutter(arr, habitat_map, fill=np.nan, fxn=np.log)
+                        else:  # this strategy avoids log(0)'s
+                            arr = np.log(arr)
                         # (unindent)                                                       
                         sd_summed_disp += np.nansum((arr[:,:,0] - mean_disp)**2)
                         sd_summed_dens += np.nansum((arr[:,:,1] - mean_dens)**2)
@@ -1273,12 +1268,14 @@ def preprocess_density_grid():
 
             # normalize
             arr = np.load(rawfile+".npy")
-            arr += 1
-            arr = np.log(arr)
-            for t in range(2):
+            if args.habitat_map is not None:
+                arr = cookie_cutter(arr, habitat_map, fill=np.nan, fxn=np.log)  # nan
+            else:
+                arr = np.log(arr)
+            for t in range(2): 
                 arr[:,:,t] = (arr[:,:,t] - stats[t][0]) / stats[t][1]
-            if args.habitat_map != None: # (only relevant for the png output)
-                arr = cookie_cutter(arr, habitat_map, fill=0)
+            if args.habitat_map is not None:
+                arr = cookie_cutter(arr, habitat_map, fill=0.0)  # zero
             np.save(targetfile, arr)
 
             # also visualize PNG of the raw  counts, rescaled to (0,255)
@@ -1286,12 +1283,11 @@ def preprocess_density_grid():
             vals *= stats[0][1]
             vals += stats[0][0]
             vals = np.exp(vals)
-            vals -= 1  
             vals /= max_disp 
             vals *= 255
             vals = np.floor(vals)
             if args.habitat_map != None: # (only relevant for the png output) 
-                vals = cookie_cutter(vals, habitat_map, fill=0)
+                vals = cookie_cutter(vals, habitat_map, fill=0.0)
             rgb = np.concatenate([                                                                  
                                 np.full((args.map_width,args.map_width, 1), 0, dtype='uint8'),      
                                 np.full((args.map_width,args.map_width, 1), 0, dtype='uint8'),      
@@ -1306,12 +1302,11 @@ def preprocess_density_grid():
             vals *= stats[1][1]
             vals += stats[1][0]
             vals = np.exp(vals)
-            vals -=1
             vals /= max_dens
             vals *= 255
             vals = np.floor(vals)
             if args.habitat_map != None: # (only relevant for the png output)
-                vals = cookie_cutter(vals, habitat_map, fill=0)
+                vals = cookie_cutter(vals, habitat_map, fill=0.0)
             rgb = np.concatenate([
                                 np.reshape(vals, (args.map_width,args.map_width,1)).astype('uint8'),
                                 np.full((args.map_width,args.map_width, 1), 0, dtype='uint8'),
