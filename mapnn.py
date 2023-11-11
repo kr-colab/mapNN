@@ -182,10 +182,10 @@ def load_network(map_width,habitat_map):
     if num_conv_iterations < 0:
         num_conv_iterations = 0
 
-    # ### *** wolf hack for 10627 snps
-    # num_conv_iterations = 3
-    # print("\n\n\n\n\n\t\tCURRENTLY DOING A CUSTOM 3 CONV ITERATIONS, PROBABLY CHANGE THIS\n\n\n\n\n")
-    # ### 
+    ### *** wolf hack for 10627 snps
+    num_conv_iterations = 3
+    print("\n\n\n\n\n\t\tCURRENTLY DOING A CUSTOM 3 CONV ITERATIONS, PROBABLY CHANGE THIS\n\n\n\n\n")
+    ### 
 
     # organize pairs of individuals
     combinations = list(itertools.combinations(range(args.n), 2))
@@ -1052,18 +1052,20 @@ def preprocess():
     else:
         locs = None
 
+    # read in habitat map
+    if args.habitat_map is None:
+        num_relevant_pixels = args.map_width**2
+    else:
+        habitat_map = read_habitat_map(args.habitat_map, args.map_width)
+        num_relevant_pixels = np.sum(habitat_map)
+
+
     # loop through maps to get mean and sd          
     if args.training_params is not None:
         stats = np.load(args.training_params)
     elif os.path.isfile(args.out+"/mean_sd.npy"):
         stats = np.load(args.out+"/mean_sd.npy")
     else:
-        if args.habitat_map is None:                                    
-            num_relevant_pixels = args.map_width**2
-        else:                                                           
-            habitat_map = read_habitat_map(args.habitat_map, args.map_width)
-            num_relevant_pixels = np.sum(habitat_map)
-
         # loop through all maps to get mean
         means_summed_disp = 0
         means_summed_dens = 0
@@ -1130,9 +1132,14 @@ def preprocess():
             if os.path.isfile(genofile+".npy") is True and os.path.isfile(locfile+".npy") is True: # only add map if inputs successful
                 if os.path.isfile(mapfile+".npy") is False:
                     target = read_map(maps[i], args.map_width)
-                    target = np.log(target)
+                    if args.habitat_map != None:
+                        target = cookie_cutter(target, habitat_map, fill=np.nan, fxn=np.log)
+                    else:  # this strategy avoids log(0)'s                                  
+                        target = np.log(target)
                     for t in range(2):
                         target[:,:,t] = (target[:,:,t] - stats[t][0]) / stats[t][1]
+                    if args.habitat_map != None:
+                        target = cookie_cutter(target, habitat_map, fill=0)
                     np.save(mapfile, target)
     else:
         mapfile = os.path.join(args.out,"Maps",str(args.seed),str(args.simid)+".target")
@@ -1145,9 +1152,14 @@ def preprocess():
         if os.path.isfile(genofile+".npy") is True and os.path.isfile(locfile+".npy") is True: # only add map if inputs successful
             if os.path.isfile(mapfile+".npy") is False:
                 target = read_map(maps[args.simid-1], args.map_width)
-                target = np.log(target)
+                if args.habitat_map != None:
+                    target = cookie_cutter(target, habitat_map, fill=np.nan, fxn=np.log)
+                else:  # this strategy avoids log(0)'s                            
+                    target = np.log(target)
                 for t in range(2):
                     target[:,:,t] = (target[:,:,t] - stats[t][0]) / stats[t][1]   
+                if args.habitat_map != None:
+                    target = cookie_cutter(target, habitat_map, fill=0)
                 np.save(mapfile, target)                                                             
 
     return
