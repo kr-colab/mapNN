@@ -587,7 +587,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
             # un-normalize and back-transform
             trueval = np.load(targets[simids[i]])
             prediction = predictions[i]
-            prediction = np.reshape(prediction, (map_width,map_width,2)) # from (2,map_width,map_width)
+            prediction = np.reshape(prediction, (map_width,map_width,2)) # from (2,map_width,map_width) ((is this still necessary?))
             for t in range(2):
                 trueval[:,:,t] = (trueval[:,:,t] * mean_sd[t][1]) + mean_sd[t][0]
                 prediction[:,:,t] = (prediction[:,:,t] * training_mean_sd[t][1]) + training_mean_sd[t][0]
@@ -620,7 +620,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
             # prepare min and max values for plotting
             # inside loop, since it sometimes get's min/max from the true map (when counting realized density)
             if args.ranges is None:                                                                                       
-                min_sigma,max_sigma,min_k,max_k = get_min_max(trueval)                                                    
+                min_sigma,max_sigma,min_k,max_k = get_min_max(trueval)
             else:                                                                                                         
                 min_sigma,max_sigma,min_k,max_k = list(map(float,args.ranges.split(",")))
     
@@ -892,7 +892,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
 
         # calc mean and var maps
         prediction = np.mean(predictions, axis=0)
-        variance = np.var(predictions, axis=0)
+        variance = np.std(predictions, axis=0)
 
         # plot pred and var maps separately 
         for i in range(2):
@@ -900,7 +900,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
                 exit()
             out_map = [prediction,variance][i]
 
-            # apply mask
+            # apply mask    TODO: fill with np.nan, use nanmin() nanmax()?
             if args.habitat_map is not None:
                 out_map = cookie_cutter(out_map, habitat_map, fill=0.0)
                 relevant_pixels = np.sum(habitat_map)
@@ -910,7 +910,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
             # find min and max values for plotting and empirical interpretation
             if args.ranges is None:
                 min_sigma,max_sigma,min_k,max_k = get_min_max(out_map,habitat_map)
-                print(min_sigma,max_sigma,min_k,max_k)
+                print("ranges for sigma, and K:", min_sigma,max_sigma,min_k,max_k)
             else:
                 print("misleading to demand a particular range from your empirical data")
                 exit()
@@ -921,7 +921,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
                 print("relevant pixels", relevant_pixels)
                 print("mean K (or density, if you counted that) (SLim units):", np.sum(out_map[:,:,1])/relevant_pixels)
 
-            # convert to (0,1) scale according to predicted ranges
+            # convert to (0,1) scale
             out_map[:,:,0] = (out_map[:,:,0]-min_sigma) / (max_sigma-min_sigma)
             out_map[:,:,1] = (out_map[:,:,1]-min_k) / (max_k-min_k)
 

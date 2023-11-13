@@ -333,49 +333,48 @@ def grid_density(slim_output,w,grid_coarseness,current_gen):
     return counts
 
 
-    # plotting fxns                                                                                                   
-    def get_concat_h(im1, im2):
-        dst = Image.new('RGB', (im1.width + im2.width, im1.height))
-        dst.paste(im1, (0, 0))
-        dst.paste(im2, (im1.width, 0))
-        return dst
-    def get_concat_bar(im1, im2):
-        dst = Image.new('RGB', (im1.width + im2.width, im1.height))#, (255,255,255))                                  
-        dst.paste(im1, (0, 0))
-        dst.paste(im2, (im1.width, im1.height-im2.height))
-        return dst
-    def get_concat_v(im1, im2):
-        dst = Image.new('RGB', (im1.width, im1.height + im2.height))
-        dst.paste(im1, (0, 0))
-        dst.paste(im2, (0, im1.height))
-        return dst
+# plotting fxns                                                                                                   
+def get_concat_h(im1, im2):
+    dst = Image.new('RGB', (im1.width + im2.width, im1.height))
+    dst.paste(im1, (0, 0))
+    dst.paste(im2, (im1.width, 0))
+    return dst
+def get_concat_bar(im1, im2):
+    dst = Image.new('RGB', (im1.width + im2.width, im1.height))#, (255,255,255))                                  
+    dst.paste(im1, (0, 0))
+    dst.paste(im2, (im1.width, im1.height-im2.height))
+    return dst
+def get_concat_v(im1, im2):
+    dst = Image.new('RGB', (im1.width, im1.height + im2.height))
+    dst.paste(im1, (0, 0))
+    dst.paste(im2, (0, im1.height))
+    return dst
 
-    # grab min and max values for rescaling sigma
-    def get_min_max(the_map, habi_map=None):
-        if habi_map is None:
-            # # this approach won't work until you log-scale the heatmap                                              
-            # mean_sigma = np.mean(the_map[:,:,0])                                                                    
-            # mean_k = np.mean(the_map[:,:,1])                                                                        
-            # min_sigma = mean_sigma / 10                                                                             
-            # max_sigma = mean_sigma * 10                                                                             
-            # min_k = mean_k / 10                                                                                     
-            # max_k = mean_k * 10                                                                                     
-            #                                                                                                         
-            min_sigma = np.min(the_map[:,:,0])
-            max_sigma = np.max(the_map[:,:,0])
-            min_k = np.min(the_map[:,:,1])
-            max_k = np.max(the_map[:,:,1])
-        else:
-            # find range of sigma, and range of K *inside the habitat* (not in the water) for empirical interpretation
-            min_sigma,max_sigma,min_k,max_k=1e16,0,1e16,0  # defaults                                                 
-            for j in range(the_map.shape[0]):
-                for k in range(the_map.shape[1]):
-                    if habi_map[j,k] == 1:  # land                                                                    
-                        min_sigma = np.min([min_sigma,the_map[j,k,0]])
-                        max_sigma = np.max([max_sigma,the_map[j,k,0]])
-                        min_k = np.min([min_k,the_map[j,k,1]])
-                        max_k = np.max([max_k,the_map[j,k,1]])
-        return min_sigma,max_sigma,min_k,max_k
+# grab min and max values for rescaling sigma
+def get_min_max(the_map, habi_map=None):
+    if habi_map is None:
+        # # (this approach won't work until you plot the heatmap in log scale)
+        # mean_sigma = np.mean(the_map[:,:,0])                                                                    
+        # mean_k = np.mean(the_map[:,:,1])                                                                        
+        # min_sigma = mean_sigma / 10                                                                             
+        # max_sigma = mean_sigma * 10                                                                             
+        # min_k = mean_k / 10                                                                                     
+        # max_k = mean_k * 10                                                                                     
+        #                                                                                                         
+        min_sigma = np.min(the_map[:,:,0])
+        max_sigma = np.max(the_map[:,:,0])
+        min_k = np.min(the_map[:,:,1])
+        max_k = np.max(the_map[:,:,1])
+    else: # find range of sigma, and range of K inside the habitat for empirical interpretation
+        min_sigma,max_sigma,min_k,max_k=1e16,0,1e16,0  # defaults                                                 
+        for j in range(the_map.shape[0]):
+            for k in range(the_map.shape[1]):
+                if habi_map[j,k] == 1:
+                    min_sigma = np.min([min_sigma,the_map[j,k,0]])
+                    max_sigma = np.max([max_sigma,the_map[j,k,0]])
+                    min_k = np.min([min_k,the_map[j,k,1]])
+                    max_k = np.max([max_k,the_map[j,k,1]])
+    return min_sigma,max_sigma,min_k,max_k
 
     
 # main
