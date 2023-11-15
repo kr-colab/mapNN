@@ -900,10 +900,11 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
         prediction = np.mean(predictions, axis=0)
         variance = np.std(predictions, axis=0)
 
-        # plot pred and var maps separately 
+        # plot pred and var maps separately
+        maps = ["pred","var"]
         for i in range(2):
-            if i == 1 and args.num_reps == 1: # no variance, then no variance map
-                exit()
+            if maps[i] == "var" and args.num_reps == 1: # no variance, then no variance map
+                break # no variance, then no variance map  
             out_map = [prediction,variance][i]
 
             # apply mask    TODO: fill with np.nan, use nanmin() nanmax()?
@@ -911,21 +912,30 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
                 out_map = cookie_cutter(out_map, habitat_map, fill=0.0)
                 relevant_pixels = np.sum(habitat_map)
             else:
-                relevant_pixels = map_width**2 
+                relevant_pixels = map_width**2
+
+            # save output
+            if maps[i] == "pred":
+                np.save(str(args.out) + "/Test_" + str(args.seed) + "/mapNN_empirical_pred.npy", out_map)
+                np.savetxt(str(args.out) + "/Test_" + str(args.seed) + "/mapNN_empirical_dispersal_pred.csv", out_map[:,:,0], delimiter=",", fmt='%f')
+                np.savetxt(str(args.out) + "/Test_" + str(args.seed) + "/mapNN_empirical_density_pred.csv", out_map[:,:,1], delimiter=",", fmt='%f')            
 
             # find min and max values for plotting and empirical interpretation
             if args.ranges is None:
                 min_sigma,max_sigma,min_k,max_k = get_min_max(out_map,habitat_map)
-                print("ranges for sigma, and K:", min_sigma,max_sigma,min_k,max_k)
             else:
                 print("misleading to demand a particular range from your empirical data")
                 exit()
-            if i == 0:
-                print("sigma range (SLim units):", min_sigma,max_sigma)
-                print("k range (SLim units):", min_k,max_k)
-                print("mean sigma (SLim units):", np.sum(out_map[:,:,0])/relevant_pixels)
-                print("relevant pixels", relevant_pixels)
-                print("mean K (or density, if you counted that) (SLim units):", np.sum(out_map[:,:,1])/relevant_pixels)
+            if maps[i] == "pred":
+                print("    Predictions:")
+            else:
+                print("    Variance:")
+            # (unindent)
+            print("sigma range (SLim units):", min_sigma,max_sigma)
+            print("k range (SLim units):", min_k,max_k)
+            print("mean sigma (SLim units):", np.sum(out_map[:,:,0])/relevant_pixels)
+            print("mean K (or density, if you counted that) (SLim units):", np.sum(out_map[:,:,1])/relevant_pixels)
+            
 
             # convert to (0,1) scale
             out_map[:,:,0] = (out_map[:,:,0]-min_sigma) / (max_sigma-min_sigma)
@@ -945,7 +955,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
                 np.reshape(out_map[:,:,0], (map_width,map_width,1)),
             ], axis=-1)
             im = Image.fromarray(rgb)#.astype("uint8"))
-            im.save(str(args.out) + "/Test_" + str(args.seed) + "/mapNN_empirical_dispersal_" + ["pred","var"][i] + ".png")
+            im.save(str(args.out) + "/Test_" + str(args.seed) + "/mapNN_empirical_dispersal_" + maps[i] + ".png")
             #
             rgb = np.concatenate([
                 np.reshape(out_map[:,:,1], (map_width,map_width,1)),
@@ -954,7 +964,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
                 np.reshape(out_map[:,:,1], (map_width,map_width,1)),
             ], axis=-1)
             im = Image.fromarray(rgb)#.astype("uint8"))
-            im.save(args.out + "/Test_" + str(args.seed) + "/mapNN_empirical_density_" + ["pred","var"][i] + ".png")
+            im.save(args.out + "/Test_" + str(args.seed) + "/mapNN_empirical_density_" + maps[i] + ".png")
 
 
             ############### heat maps ####################
@@ -1036,7 +1046,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
             all_together  = get_concat_h(all_together, all_together2)
 
             # write
-            all_together.save(output_pref + ["pred","var"][i] + ".png")
+            all_together.save(output_pref + maps[i] + ".png")
             os.remove(tmpfile)
 
     return
