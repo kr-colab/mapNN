@@ -156,6 +156,12 @@ parser.add_argument("--vcf",default=False,action="store_true",help="output vcf a
 parser.add_argument("--ranges",default=None,help="for plotting: --min_sigma,max_sigma,min_k,max_k")
 parser.add_argument("--preprocess_density_grid", help="calcualte effective density in a grid", default=False, action="store_true",)
 parser.add_argument("--chroms",default=None, type=int,help="num chroms to preprocess multiple chroms")
+parser.add_argument(
+    "--plot_history",
+    default=False,
+    type=str,
+    help="plot training history? default: False",
+)
 
 args = parser.parse_args()
 check_params(args)
@@ -1332,6 +1338,32 @@ def preprocess_density_grid():
 
 
 
+
+def plot_history():
+    loss, val_loss = [], [
+        np.nan
+    ]  # loss starts at iteration 0; val_loss starts at end of first epoch
+    with open(args.plot_history) as infile:
+        for line in infile:
+            if "val_loss:" in line:
+                endofline = line.strip().split(" loss:")[-1]
+                loss.append(float(endofline.split()[0]))
+                val_loss.append(float(endofline.split()[3]))
+    loss.append(np.nan)  # make columns even-length
+    epochs = np.arange(len(loss))
+    fig = plt.figure(figsize=(4, 1.5), dpi=200)
+    plt.rcParams.update({"font.size": 7})
+    ax1 = fig.add_axes([0, 0, 0.4, 1])
+    ax1.plot(epochs, val_loss, color="blue", lw=0.5, label="val_loss")
+    ax1.set_xlabel("Epoch")
+    ax1.plot(epochs, loss, color="red", lw=0.5, label="loss")
+    ax1.legend()
+    fig.savefig(args.plot_history + "_plot.pdf", bbox_inches="tight")
+
+
+
+
+    
 ### main ###
 np.random.seed(args.seed)
 
@@ -1347,6 +1379,10 @@ if args.train is True:
     print("starting training pipeline")
     train()
 
+# plot training history
+if args.plot_history:
+    plot_history()
+    
 # predict
 if args.predict is True:
     print("starting prediction pipeline")
