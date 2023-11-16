@@ -153,7 +153,7 @@ parser.add_argument("--slim_width", help="range of locs from simulation, if diff
 parser.add_argument("--filts1", help="num filters convolvulator", type=int, default = 126)
 parser.add_argument("--filts2", help="num filters continuous filter conv", type=int, default = 64)
 parser.add_argument("--vcf",default=False,action="store_true",help="output vcf and other files for methods comparison pipeline")
-parser.add_argument("--ranges",default=None,help="for plotting: --min_sigma,max_sigma,min_k,max_k")
+parser.add_argument("--ranges",default=None,,type=float,help="for plotting: --ranges <min_sigma> <max_sigma> <min_k> <max_k>", nargs=4)
 parser.add_argument("--preprocess_density_grid", help="calcualte effective density in a grid", default=False, action="store_true",)
 parser.add_argument("--chroms",default=None, type=int,help="num chroms to preprocess multiple chroms")
 parser.add_argument(
@@ -628,7 +628,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
             if args.ranges is None:                                                                                       
                 min_sigma,max_sigma,min_k,max_k = get_min_max(trueval)
             else:                                                                                                         
-                min_sigma,max_sigma,min_k,max_k = list(map(float,args.ranges.split(",")))
+                min_sigma,max_sigma,min_k,max_k = args.ranges
     
             # convert to (0,1) scale according to user specified ranges
             trueval[:,:,0] = (trueval[:,:,0]-min_sigma) / (max_sigma-min_sigma)  # (0,1) scale
