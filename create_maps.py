@@ -2,7 +2,7 @@
 # creates a 2-channel map (.npy) with random spatial segments
 
 # e.g., python create_maps.py --help  # help message
-# e.g., python create_maps.py --out temp1.npy --seed 123 --w 50 --min_c1 0.2 --max_c1 3 --min_c2 4 --max_c2 4
+# e.g., python create_maps.py --out temp1.npy --seed 123 --w 50 --min_c1 0.2 --max_c1 3 --min_c2 4 --max_c2 40
 # e.g., python create_maps.py --out temp1.npy --seed 123 --w 500 --png  # output optional PNG 
 
 
