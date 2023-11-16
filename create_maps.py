@@ -28,10 +28,10 @@ args=parser.parse_args()
 
 
 def random_points():
-    degree = random.randint(0, args.max_degree+1) # includes lower bound, excludes upper bound. 0=flat line, 1=sloped line, 2=curves, 3=up and downs.
+    degree = random.randint(0, args.max_degree) # includes lower and upper bound. 0=flat line, 1=sloped line, 2=curves, 3=up and downs.
     num_points = degree+1
-    x_pos = [random.randint(0, args.w-1) for p in range(0, num_points)]
-    y_pos = [random.randint(0, args.w-1) for p in range(0, num_points)]
+    x_pos = [np.random.uniform(0, args.w) for p in range(0, num_points)]
+    y_pos = [np.random.uniform(0, args.w) for p in range(0, num_points)]
     return degree,x_pos,y_pos
 
 
@@ -192,11 +192,11 @@ def make_mat(segment_map, values, ys):
 
 
 def flip(mat):
-    if random.randint(0,2) == 0:
+    if random.randint(0,1) == 0:
         mat = np.flip(mat, axis=0)
-    if random.randint(0,2) == 0:
+    if random.randint(0,1) == 0:
         mat = np.flip(mat, axis=1)
-    if random.randint(0,2) == 0:
+    if random.randint(0,1) == 0:
         mat = np.rot90(mat)
     return mat
 
