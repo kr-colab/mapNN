@@ -153,7 +153,7 @@ parser.add_argument("--slim_width", help="range of locs from simulation, if diff
 parser.add_argument("--filts1", help="num filters convolvulator", type=int, default = 126)
 parser.add_argument("--filts2", help="num filters continuous filter conv", type=int, default = 64)
 parser.add_argument("--vcf",default=False,action="store_true",help="output vcf and other files for methods comparison pipeline")
-parser.add_argument("--ranges",default=None,,type=float,help="for plotting: --ranges <min_sigma> <max_sigma> <min_k> <max_k>", nargs=4)
+parser.add_argument("--ranges",default=None,type=float,help="for plotting: --ranges <min_sigma> <max_sigma> <min_k> <max_k>", nargs=4)
 parser.add_argument("--preprocess_density_grid", help="calcualte effective density in a grid", default=False, action="store_true",)
 parser.add_argument("--chroms",default=None, type=int,help="num chroms to preprocess multiple chroms")
 parser.add_argument(
@@ -543,8 +543,9 @@ def empirical():
     # convert vcf to geno matrix and predict
     predictions = []
     for i in range(args.num_reps):
-        model, checkpointer, earlystop, reducelr = load_network(map_width,habitat_map) # inside loop, to get different pairs
-        test_genos = vcf2genos(  # inside loop, in case subsetting snps
+        print("empirical rep #", i)
+        model, checkpointer, earlystop, reducelr = load_network(map_width,habitat_map) # inside loop, to get different pairs each rep.
+        test_genos = vcf2genos(  # inside loop to get different snp sets
             args.empirical + ".vcf", args.n, args.num_snps, args.phase
         )
         #ibd(test_genos, locs, args.phase, args.num_snps)
