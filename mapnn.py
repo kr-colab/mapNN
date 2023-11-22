@@ -162,6 +162,7 @@ parser.add_argument(
     type=str,
     help="plot training history? default: False",
 )
+parser.add_argument("--bootstrap",default=False,action="store_true",help="treat test dir as bootstrap simulations, output uncertainty map")
 
 args = parser.parse_args()
 check_params(args)
@@ -625,23 +626,23 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
                 out_f.write(str(mrae_0) + "\t" + str(mrae_1) + "\n")
 
             # prepare min and max values for plotting
-            # inside loop, since it sometimes get's min/max from the true map (when counting realized density)
+            # (inside loop, since it sometimes get's min/max from the true map, e.g. when counting realized density)
             if args.ranges is None:                                                                                       
                 min_sigma,max_sigma,min_k,max_k = get_min_max(trueval)
             else:                                                                                                         
                 min_sigma,max_sigma,min_k,max_k = args.ranges
     
             # convert to (0,1) scale according to user specified ranges
-            trueval[:,:,0] = (trueval[:,:,0]-min_sigma) / (max_sigma-min_sigma)  # (0,1) scale
+            trueval[:,:,0] = (trueval[:,:,0]-min_sigma) / (max_sigma-min_sigma)
             trueval[:,:,1] = (trueval[:,:,1]-min_k) / (max_k-min_k)
+            prediction[:,:,0] = (prediction[:,:,0]-min_sigma) / (max_sigma-min_sigma)
+            prediction[:,:,1] = (prediction[:,:,1]-min_k) / (max_k-min_k)
 
             # convert to PNG format
             trueval *= 255
             trueval = np.round(trueval)
             trueval = np.clip(trueval, 0, 255)
             trueval = trueval.astype('uint8') # (II) int
-            prediction[:,:,0] = (prediction[:,:,0]-min_sigma) / (max_sigma-min_sigma)
-            prediction[:,:,1] = (prediction[:,:,1]-min_k) / (max_k-min_k)
             prediction *= 255
             prediction = np.round(prediction)
             prediction = np.clip(prediction, 0, 255)
@@ -925,7 +926,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
             if args.ranges is None:
                 min_sigma,max_sigma,min_k,max_k = get_min_max(out_map,habitat_map)
             else:
-                print("misleading to demand a particular range from your empirical data")
+                print("maybe misleading to demand a particular range from your empirical data")
                 exit()
             if maps[i] == "pred":
                 print("    Predictions:")
@@ -1374,6 +1375,121 @@ def plot_history():
 
 
 
+def ci():
+    import cv2
+    map_width = 50
+    plot_width = 500
+    ci_file = args.out + "/Test_" + str(args.seed) + "/CIs.txt"
+    if args.habitat_map is not None:
+        habitat_map = read_habitat_map(args.habitat_map, map_width)
+        habitat_map_plot = read_habitat_map(args.habitat_map, plot_width)
+
+    # load inputs
+    if args.simid is None:
+        targets,genos,locs = preds_from_preprocessed(args.out)
+        total_sims = len(targets)
+    else:
+        targets = [args.out + "/Maps/" + str(args.seed) + "/" + str(args.simid) + ".target.npy"]
+        genos = [args.out + "/Genos/" + str(args.seed) +"/" + str(args.simid) +".genos.npy"]
+        locs = [args.out + "/Locs/" + str(args.seed) +"/" + str(args.simid) +".locs.npy"]
+        total_sims = 1
+
+    # loop through preds
+    R = len(targets) 
+    sampling_dist = np.zeros((50,50,2,R))
+    for r in range(R):
+        f = "/home/chriscs/Boxes116_wolves_v4_bs/Test_1/mapNN_" + str(r+1) + "_pred.npy"
+        pred = np.load(f)
+        sampling_dist[:,:,:,r] = pred
+    
+    # pixel wise intervals
+    alpha = 0.05
+    interval_map = np.zeros((50,50,2))
+    f = "/home/chriscs/Boxes116_wolves_v4_bs/Test_1/mapNN_1_pred.npy"  # same for all
+    true = np.load(f)
+    with open(ci_file,"w") as outfile:
+        for i in range(50):
+            for j in range(50):
+                for p in range(2):
+                    # confidence interval
+                    dist = sampling_dist[i,j,p]
+                    dist.sort()
+                    thetahat_low =  dist[int(np.floor( R*   (alpha/2.0))) -1]
+                    thetahat_high = dist[int(np.ceil(  R*(1-(alpha/2.0))))  ]
+                    lower = 2*true[i,j,p] - thetahat_high
+                    upper = 2*true[i,j,p] - thetahat_low
+                    interval_map[i,j,p] = upper-lower
+                    
+                    # write
+                    outline = [["dispersal","density"][p]]
+                    outline += [i,j]
+                    outline.append(true[i,j,p])
+                    outline.append(lower)
+                    outline.append(upper)
+                    outfile.write("\t".join(map(str,outline)) + "\n")
+
+    # find min and max values for plotting
+    min_sigma,max_sigma,min_k,max_k = get_min_max(interval_map,habitat_map)
+                    
+    # convert to (0,1) scale 
+    interval_map[:,:,0] = (interval_map[:,:,0]-min_sigma) / (max_sigma-min_sigma)
+    interval_map[:,:,1] = (interval_map[:,:,1]-min_k) / (max_k-min_k)
+        
+    # convert to PNG format                                                                                             
+    interval_map *= 255
+    interval_map = np.round(interval_map)
+    interval_map = np.clip(interval_map, 0, 255)
+    interval_map = interval_map.astype('uint8') # (II) int
+
+    # heat map
+    tmpfile =  args.out + "/Test_" + str(args.seed) + "/tmp_1.png"
+    for i in range(2):
+        # plot
+        img = Image.fromarray(interval_map[:,:,i])
+        img = img.convert('L')
+        img = img.resize((plot_width,plot_width))
+        img.save(tmpfile)
+        img = cv2.imread(tmpfile, cv2.IMREAD_GRAYSCALE)
+        colormap = plt.get_cmap('coolwarm_r')
+        img = (colormap(img) * 2**16).astype(np.uint16)[:,:,:3]
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        if args.habitat_map is not None:
+            img = cookie_cutter(img, habitat_map_plot, fill=65535)
+        cv2.imwrite(tmpfile, img) # write temp file                                               
+        mapNN_png = Image.open(tmpfile) # read as PIL again                                       
+        if args.habitat_border is not None:
+            im_border = Image.open(args.habitat_border)
+            im_border = im_border.resize((plot_width,plot_width))
+            mapNN_png.paste(im_border, (0,0), ImageOps.invert(ImageOps.grayscale(im_border)))
+        mapNN_png = ImageOps.expand(mapNN_png, border=10, fill='white')
+
+        # save color bar separately                                                                         
+        fig = plt.figure()
+        ax = fig.add_axes([0, 0.05, 0.06, 1]) # left, bottom, width, height
+        ranges=[ [min_sigma,max_sigma], [min_k,max_k] ]
+        norm = colors.Normalize(ranges[i][0],ranges[i][1])
+        colormap = plt.get_cmap('coolwarm_r') # _r for reverse (don't ask)                                  
+        cb = mpl.colorbar.ColorbarBase(ax, cm.ScalarMappable(norm=norm, cmap=colormap))#, label=r'$\sigma$')
+        plt.savefig(tmpfile, bbox_inches='tight')
+        plt.close()
+        fig.clear()
+        cb = Image.open(tmpfile)
+        white_background = Image.new("RGB", (cb.size[0], 50), (255, 255, 255)) # adding some white space above bar
+        cb  = get_concat_v(white_background, cb)
+        cb = cb.resize((75,520))                                                               
+
+        # combine                                                                                 
+        all_together = get_concat_bar(mapNN_png, cb)
+
+        # write
+        outfile =  args.out + "/Test_" + str(args.seed) + "/ci_" + ["disp","dens"][i] + ".png"
+        all_together.save(outfile)
+        os.remove(tmpfile)
+
+
+
+            
+    
     
 ### main ###
 np.random.seed(args.seed)
@@ -1391,7 +1507,7 @@ if args.train is True:
     train()
 
 # plot training history
-if args.plot_history:
+if args.plot_history is not False:  # check for plot_history=file path
     plot_history()
     
 # predict
@@ -1403,3 +1519,7 @@ if args.predict is True:
     else:
         print("predicting on empirical data")
         empirical()
+
+# get pixel-wise confidence intervals
+if args.bootstrap is True:
+    ci()
