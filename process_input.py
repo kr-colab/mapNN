@@ -383,7 +383,8 @@ def get_min_max(the_map, habi_map=None):
 
 
 # plot heat map
-def heatmap(demap, plot_width, ranges, tmpfile, habitat_map_plot=None, habitat_border=None):
+def heatmap(demap, plot_width, ranges, tmpfile, habitat_map_plot=None, habitat_border=None, locs=None):
+    # plot map
     img = Image.fromarray(demap)
     img = img.convert('L')
     img = img.resize((plot_width,plot_width))
@@ -392,6 +393,9 @@ def heatmap(demap, plot_width, ranges, tmpfile, habitat_map_plot=None, habitat_b
     colormap = plt.get_cmap('coolwarm_r')
     img = (colormap(img) * 2**16).astype(np.uint16)[:,:,:3]
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    if locs is not None:
+        for l in range(locs.shape[1]):
+            img = cv2.circle(img, (locs[0,l],locs[1,l]), radius=3, color=(0,0,0), thickness=1)
     if habitat_map_plot is not None:
         img = cookie_cutter(img, habitat_map_plot, fill=65535)
     cv2.imwrite(tmpfile, img) # write temp file                                                               
@@ -419,7 +423,8 @@ def heatmap(demap, plot_width, ranges, tmpfile, habitat_map_plot=None, habitat_b
     os.remove(tmpfile)
 
     return img
-    
+
+
 # main
 def main():
     vcf_path = sys.argv[1]
