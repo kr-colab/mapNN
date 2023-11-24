@@ -4,6 +4,8 @@ from geopy import distance
 import random
 from PIL import Image
 from PIL import ImageOps
+from PIL import ImageDraw
+from PIL import ImageFont
 from numpy import asarray
 from skimage.measure import block_reduce
 import matplotlib as mpl
@@ -383,7 +385,7 @@ def get_min_max(the_map, habi_map=None):
 
 
 # plot heat map
-def heatmap(demap, plot_width, ranges, tmpfile, habitat_map_plot=None, habitat_border=None, locs=None):
+def heatmap(demap, plot_width, tmpfile, cb_params=None, habitat_map_plot=None, habitat_border=None, locs=None):
     # plot map
     img = Image.fromarray(demap)
     img = img.convert('L')
@@ -406,21 +408,31 @@ def heatmap(demap, plot_width, ranges, tmpfile, habitat_map_plot=None, habitat_b
         img.paste(im_border, (0,0), ImageOps.invert(ImageOps.grayscale(im_border)))
     img = ImageOps.expand(img, border=10, fill='white')
 
-    # color bar                                                                                               
-    fig = plt.figure()
-    ax = fig.add_axes([0, 0.05, 0.06, 1]) # left, bottom, width, height                                       
-    norm = colors.Normalize(ranges[0],ranges[1])
-    colormap = plt.get_cmap('coolwarm_r') # _r for reverse (don't ask)                                        
-    cb = mpl.colorbar.ColorbarBase(ax, cm.ScalarMappable(norm=norm, cmap=colormap))#, label=r'$\sigma$')      
-    plt.savefig(tmpfile, bbox_inches='tight')
-    plt.close()
-    fig.clear()
-    cb = Image.open(tmpfile)
-    white_background = Image.new("RGB", (cb.size[0], 50), (255, 255, 255)) # adding some white space above bar
-    cb  = get_concat_v(white_background, cb)
-    cb = cb.resize((75,520))
-    img = get_concat_bar(img, cb)
-    os.remove(tmpfile)
+    # color bar
+    if cb_params is not None:
+        fig = plt.figure()
+        ax = fig.add_axes([0, 0.05, 0.06, 1]) # left, bottom, width, height                                       
+        norm = colors.Normalize(cb_params[0],cb_params[1])
+        colormap = plt.get_cmap('coolwarm_r') # _r for reverse (don't ask)                                        
+        cb = mpl.colorbar.ColorbarBase(ax, cm.ScalarMappable(norm=norm, cmap=colormap))#, label=r'$\sigma$')      
+        plt.savefig(tmpfile, bbox_inches='tight')
+        plt.close()
+        fig.clear()
+        cb = Image.open(tmpfile)
+        white_background = Image.new("RGB", (cb.size[0], 50), (255, 255, 255)) # adding some white space above bar
+        cb  = get_concat_v(white_background, cb)
+        cb = cb.resize((75,520))
+        img = get_concat_bar(img, cb)
+        os.remove(tmpfile)
+
+        # text label
+        font_path = os.path.join(cv2.__path__[0],'qt','fonts','DejaVuSans-Oblique.ttf')               
+        myfont = ImageFont.truetype(font_path, size=24)                                       
+        t = ImageDraw.Draw(img) # (this syntax doesn't make any sense but it works?) 
+        t.text((540, 26), cb_params[2], fill=(0,0,0), font=myfont) # sigma                        
+#        font_path = os.path.join(cv2.__path__[0],'qt','fonts','DejaVuSans-Oblique.ttf')       
+ #       myfont = ImageFont.truetype(font_path, size=24)                                       
+  #      t.text((540, 546), 'K', fill=(0,0,0), font=myfont) # K
 
     return img
 

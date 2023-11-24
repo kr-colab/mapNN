@@ -13,9 +13,6 @@ from matplotlib import cm,colors
 import matplotlib as mpl
 import math
 import PIL.Image as Image
-from PIL import ImageDraw
-from PIL import ImageFont
-from PIL import ImageOps
 
 def load_dl_modules():
     print("loading bigger modules")
@@ -505,15 +502,19 @@ def predict():
     # predict
     print("predicting")
     os.makedirs(args.out + "/Test_" + str(args.seed), exist_ok=True)
-    load_dl_modules()
-    model, checkpointer, earlystop, reducelr = load_network(map_width, None)
+#    load_dl_modules()
+ #   model, checkpointer, earlystop, reducelr = load_network(map_width, None)
     for b in range(int(np.ceil(args.num_pred/args.batch_size))): # loop to alleviate memory                    
         simids_batch = simids[b*args.batch_size:(b+1)*args.batch_size]
         partition["prediction"] = np.array(simids_batch)
-        generator = DataGenerator(partition["prediction"], **params)
-        predictions = model.predict_generator(generator)
+  #      generator = DataGenerator(partition["prediction"], **params)
+   #     predictions = model.predict_generator(generator)
+        ###
+        #np.save("temp1.npy", predictions)
+        #exit()
+        predictions = np.load("temp1.npy")
+        ###
         unpack_predictions(predictions, map_width, targets, locs, simids_batch, targets)
-
     return
 
 
@@ -539,13 +540,13 @@ def empirical():
     empirical_locs = np.flip(empirical_locs, axis=0) # swap x and y (to match PNG indices)
     
     # load modules
-#    load_dl_modules()
+    load_dl_modules()
 
     # convert vcf to geno matrix and predict
     predictions = []
     for i in range(args.num_reps):
         print("empirical rep #", i)
- #       model, checkpointer, earlystop, reducelr = load_network(map_width,habitat_map) # inside loop, to get different pairs each rep.
+        model, checkpointer, earlystop, reducelr = load_network(map_width,habitat_map) # inside loop, to get different pairs each rep.
         test_genos = vcf2genos(  # inside loop to get different snp sets
             args.empirical + ".vcf", args.n, args.num_snps, args.phase
         )
@@ -556,15 +557,15 @@ def empirical():
         test_locs = np.reshape(  # (inside loop just to be clean)
             empirical_locs, (1, empirical_locs.shape[0], empirical_locs.shape[1])
         )
-  #      prediction = model.predict([test_genos, test_locs])
-   #     prediction = np.squeeze(prediction, axis=0)  # get rid of extra dim
-    #    predictions.append(prediction)
+        prediction = model.predict([test_genos, test_locs])
+        prediction = np.squeeze(prediction, axis=0)  # get rid of extra dim
+        predictions.append(prediction)
 
     # process predictions
     ###
     #np.save("temp1.npy", predictions)
     #exit()
-    predictions = np.load("temp1.npy")
+    #predictions = np.load("temp1.npy")
     ###
     unpack_predictions(predictions, map_width, None, test_locs, None, None)
 
@@ -600,10 +601,6 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
             # un-normalize and back-transform
             trueval = np.load(targets[simids[i]])
             prediction = predictions[i]
-            #print(prediction.shape)
-            #prediction = np.reshape(prediction, (map_width,map_width,2)) # from (2,map_width,map_width) ((is this still necessary?))
-            #print(prediction.shape)
-            #exit()
             for t in range(2):
                 trueval[:,:,t] = (trueval[:,:,t] * mean_sd[t][1]) + mean_sd[t][0]
                 prediction[:,:,t] = (prediction[:,:,t] * training_mean_sd[t][1]) + training_mean_sd[t][0]
@@ -737,11 +734,9 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
             comb_im.paste(images[3], (w,w))
             comb_im.save(args.out + "/Test_" + str(args.seed) + "/mapNN_" + simid + "_combined.png")
 
-
-            ############ heat map ############
-            # params
+            # heat map params
             output_file = args.out + "/Test_" + str(args.seed) + "/final_" + str(simid) + ".png"
-            tmpfile =  args.out + "/Test_" + str(args.seed) + "/tmp_" + str(simid) + ".png"
+            tmpfile =  args.out + "/Test_" + str(args.seed) + "/tmp.png"
 
             # prep locs
             locs = np.load(locs_dict[simids[i]])
@@ -749,141 +744,29 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
             factor = plot_width / map_width  # rescale
             locs *= factor
             locs = np.floor(locs).astype(int)  # round to nearest pixel, the circle function wants int
+
+            # heatmap: true dispersal
+            cb_params = [min_sigma, max_sigma, "\u03C3"]
+            disp_true = heatmap(trueval[:,:,0], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)
+
+            # heatmap: mapNN dispersal
+            disp_mapnn = heatmap(prediction[:,:,0], plot_width, tmpfile, None, habitat_map_plot, args.habitat_border, locs)
+
+            # heatmap: true density
+            cb_params = [min_k,max_k, "D"]
+            dens_true = heatmap(trueval[:,:,1], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)
             
-            # true map, dispersal
-            img = Image.fromarray(trueval[:,:,0]) # hand over to PIL
-            img = img.convert('L') # convert to grayscale
-            img = img.resize((plot_width,plot_width))
-            img.save(tmpfile) # save in temp file
-            img = cv2.imread(tmpfile, 0) # load with other module             
-            colormap = plt.get_cmap('coolwarm_r') # color pallete (_r for reverse)
-            img = (colormap(img) * 2**16).astype(np.uint16)[:,:,:3] #  map colors
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR) # map colors
-            for j in range(args.n):
-                img = cv2.circle(img, (locs[0,j],locs[1,j]), radius=3, color=(0,0,0), thickness=1)
-            if args.habitat_map is not None:  
-                img = cookie_cutter(img, habitat_map_plot, fill=65535) # maxes out at 65535
-            cv2.imwrite(tmpfile, img) # write temp file
-            truth_png = Image.open(tmpfile) # read as PIL again              
-            if args.habitat_border is not None:
-                im_border = Image.open(args.habitat_border)
-                im_border = im_border.resize((plot_width,plot_width))
-                truth_png.paste(im_border, (0,0), ImageOps.invert(ImageOps.grayscale(im_border)))
-            truth_png = ImageOps.expand(truth_png, border=10, fill='white')
+            # heatmap: mapNN density
+            dens_mapnn = heatmap(prediction[:,:,1], plot_width, tmpfile, None, habitat_map_plot, args.habitat_border, locs)
 
-            # save color bar separately
-            fig = plt.figure()
-            ax = fig.add_axes([0, 0.05, 0.06, 1]) # left, bottom, width, height
-            norm = colors.Normalize(min_sigma, max_sigma)
-            colormap = plt.get_cmap('coolwarm_r') # _r for reverse
-            cb = mpl.colorbar.ColorbarBase(ax, cm.ScalarMappable(norm=norm, cmap=colormap))#, label=r'$\sigma$')
-            plt.savefig(tmpfile, bbox_inches='tight')
-            plt.close()
-            fig.clear()
-            cb = Image.open(tmpfile)
-            white_background = Image.new("RGB", (cb.size[0], 50), (255, 255, 255)) # adding some white space above bar
-            cb  = get_concat_v(white_background, cb)
-            cb = cb.resize((75,520))
+            # merge pngs                                                                                                
+            all_together_0  = get_concat_h(disp_true, disp_mapnn)
+            all_together_1  = get_concat_h(dens_true, dens_mapnn)
+            all_together  = get_concat_v(all_together_0, all_together_1)
 
-            # mapNN
-            img = Image.fromarray(prediction[:,:,0]) # hand over to PIL            
-            img = img.convert('L') 
-            img = img.resize((plot_width,plot_width))
-            img.save(tmpfile)
-            img = cv2.imread(tmpfile, cv2.IMREAD_GRAYSCALE)
-            colormap = plt.get_cmap('coolwarm_r')
-            img = (colormap(img) * 2**16).astype(np.uint16)[:,:,:3]
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-            for j in range(args.n):
-                img = cv2.circle(img, (locs[0,j],locs[1,j]), radius=3, color=(0,0,0), thickness=1)
-            if args.habitat_map is not None:
-                img = cookie_cutter(img, habitat_map_plot, fill=65535)
-            cv2.imwrite(tmpfile, img) # write temp file
-            mapNN_png = Image.open(tmpfile) # read as PIL again
-            if args.habitat_border is not None:
-                im_border = Image.open(args.habitat_border)
-                im_border = im_border.resize((plot_width,plot_width))
-                mapNN_png.paste(im_border, (0,0), ImageOps.invert(ImageOps.grayscale(im_border)))
-            mapNN_png = ImageOps.expand(mapNN_png, border=10, fill='white')
-
-            # combine
-            all_together = get_concat_bar(truth_png, cb)
-            all_together = get_concat_h(all_together, mapNN_png)
-
-            # true map, density
-            img = Image.fromarray(trueval[:,:,1]) # hand over to PIL
-            img = img.convert('L') # convert to grayscale                                                               
-            img = img.resize((plot_width,plot_width))
-            img.save(tmpfile) # save in temp file                                                                
-            img = cv2.imread(tmpfile, 0) # load with other module                                                
-            colormap = plt.get_cmap('coolwarm_r') # color pallete                                                         
-            img = (colormap(img) * 2**16).astype(np.uint16)[:,:,:3] #  map colors                                       
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR) # map colors                                                     
-            for j in range(args.n):
-                img = cv2.circle(img, (locs[0,j],locs[1,j]), radius=3, color=(0,0,0), thickness=1)
-            if args.habitat_map is not None:
-                img = cookie_cutter(img, habitat_map_plot, fill=65535)
-            cv2.imwrite(tmpfile, img) # write temp file                      
-            truth_png2 = Image.open(tmpfile) # read as PIL again
-            if args.habitat_border is not None:
-                im_border = Image.open(args.habitat_border)
-                im_border = im_border.resize((plot_width,plot_width))
-                truth_png2.paste(im_border, (0,0), ImageOps.invert(ImageOps.grayscale(im_border)))
-            truth_png2 = ImageOps.expand(truth_png2, border=10, fill='white')
-
-            # save color bar separately                                                                       
-            fig = plt.figure()
-            norm = colors.Normalize(min_k, max_k)
-            colormap = plt.get_cmap('coolwarm_r') # _r for reverse (don't ask)
-            ax = fig.add_axes([0, 0.05, 0.06, 1]) # left, bottom, width, height                               
-            cb2 = mpl.colorbar.ColorbarBase(ax, cm.ScalarMappable(norm=norm, cmap=colormap))#, label=r'$K$')
-            plt.savefig(tmpfile, bbox_inches='tight')
-            plt.close()
-            fig.clear()
-            cb2 = Image.open(tmpfile)
-            white_background = Image.new("RGB", (cb2.size[0], 50), (255, 255, 255)) # adding some white space above bar
-            cb2  = get_concat_v(white_background, cb2)
-            cb2 = cb2.resize((75,520))
-
-            # mapNN preds
-            img = Image.fromarray(prediction[:,:,1]) # hand over to PIL
-            img = img.convert('L')
-            img = img.resize((plot_width,plot_width))
-            img.save(tmpfile)
-            img = cv2.imread(tmpfile, cv2.IMREAD_GRAYSCALE)
-            colormap = plt.get_cmap('coolwarm_r')
-            img = (colormap(img) * 2**16).astype(np.uint16)[:,:,:3]
-            img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-            for j in range(args.n):
-                img = cv2.circle(img, (locs[0,j],locs[1,j]), radius=3, color=(0,0,0), thickness=1)
-            if args.habitat_map is not None:
-                img = cookie_cutter(img, habitat_map_plot, fill=65535)
-            cv2.imwrite(tmpfile, img) # write temp file                                           
-            mapNN_png2 = Image.open(tmpfile) # read as PIL again                                  
-            if args.habitat_border is not None:
-                im_border = Image.open(args.habitat_border)
-                im_border = im_border.resize((plot_width,plot_width))
-                mapNN_png2.paste(im_border, (0,0), ImageOps.invert(ImageOps.grayscale(im_border)))
-            mapNN_png2 = ImageOps.expand(mapNN_png2, border=10, fill='white')
-
-            # merge pngs
-            all_together2 = get_concat_bar(truth_png2, cb2)
-            all_together2 = get_concat_h(all_together2, mapNN_png2)
-            all_together  = get_concat_v(all_together, all_together2)
-
-            # extra text
-            font_path = os.path.join(cv2.__path__[0],'qt','fonts','DejaVuSans.ttf')
-            myfont = ImageFont.truetype(font_path, size=24)
-            t = ImageDraw.Draw(all_together) # (this syntax doesn't make any sense but it works?)
-            t.text((540, 26), "\u03C3", fill=(0,0,0), font=myfont) # sigma
-            font_path = os.path.join(cv2.__path__[0],'qt','fonts','DejaVuSans-Oblique.ttf')
-            myfont = ImageFont.truetype(font_path, size=24)
-            t.text((540, 546), 'K', fill=(0,0,0), font=myfont) # K
-
-            # write
+            # write                                                                                                     
             all_together.save(output_file)
-            os.remove(tmpfile)
-
+            
     # empirical
     else:
         # params                                                                                  
@@ -977,15 +860,15 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
 
             # dispersal heatmap
             tmpfile =  args.out + "/Test_" + str(args.seed) + "/tmp_1.png"
-            ranges = [min_sigma,max_sigma]
-            disp_cis = heatmap(out_map[:,:,0], plot_width, ranges, tmpfile, habitat_map_plot, args.habitat_border, locs)
+            cb_params = [min_sigma,max_sigma]
+            disp_map = heatmap(out_map[:,:,0], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)
 
             # density heatmap
-            ranges = [min_k,max_k]
-            dens_cis = heatmap(out_map[:,:,1], plot_width, ranges, tmpfile, habitat_map_plot, args.habitat_border, locs)            
+            cb_params = [min_k,max_k]
+            dens_map = heatmap(out_map[:,:,1], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)            
             
             # merge pngs
-            all_together  = get_concat_h(disp_cis, dens_cis)
+            all_together  = get_concat_h(disp_map, dens_map)
 
             # write
             all_together.save(output_pref + maps[i] + ".png")
@@ -1387,12 +1270,12 @@ def ci():
     
     # dispersal CIs
     tmpfile =  args.out + "/Test_" + str(args.seed) + "/tmp_1.png"
-    ranges = [min_sigma,max_sigma]
-    disp_cis = heatmap(interval_map[:,:,0], plot_width, ranges, tmpfile, habitat_map_plot, args.habitat_border)
+    cb_params = [min_sigma,max_sigma]
+    disp_cis = heatmap(interval_map[:,:,0], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border)
 
     # density CIs
-    ranges = [min_k,max_k]
-    dens_cis = heatmap(interval_map[:,:,1], plot_width, ranges, tmpfile, habitat_map_plot, args.habitat_border)
+    cb_params = [min_k,max_k]
+    dens_cis = heatmap(interval_map[:,:,1], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border)
     
     # combine
     all_together  = get_concat_h(disp_cis, dens_cis)
