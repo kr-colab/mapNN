@@ -4,6 +4,7 @@ from sklearn.model_selection import train_test_split
 from check_params import *
 from read_input import *
 from process_input import *
+from plot_images import *
 from data_generation import DataGenerator
 import gpustat
 import itertools
