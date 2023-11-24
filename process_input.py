@@ -1,11 +1,15 @@
 import numpy as np
-import sys
+import sys, os
 from geopy import distance
 import random
 from PIL import Image
+from PIL import ImageOps
 from numpy import asarray
 from skimage.measure import block_reduce
-
+import matplotlib as mpl
+from matplotlib import pyplot as plt
+from matplotlib import cm,colors
+import cv2
 
 # convert vcf to genotype array
 # filters:
@@ -350,6 +354,7 @@ def get_concat_v(im1, im2):
     dst.paste(im2, (0, im1.height))
     return dst
 
+
 # grab min and max values for rescaling sigma
 def get_min_max(the_map, habi_map=None):
     if habi_map is None:
@@ -376,6 +381,44 @@ def get_min_max(the_map, habi_map=None):
                     max_k = np.max([max_k,the_map[j,k,1]])
     return min_sigma,max_sigma,min_k,max_k
 
+
+# plot heat map
+def heatmap(demap, plot_width, ranges, tmpfile, habitat_map_plot=None, habitat_border=None):
+    img = Image.fromarray(demap)
+    img = img.convert('L')
+    img = img.resize((plot_width,plot_width))
+    img.save(tmpfile)
+    img = cv2.imread(tmpfile, cv2.IMREAD_GRAYSCALE)
+    colormap = plt.get_cmap('coolwarm_r')
+    img = (colormap(img) * 2**16).astype(np.uint16)[:,:,:3]
+    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    if habitat_map_plot is not None:
+        img = cookie_cutter(img, habitat_map_plot, fill=65535)
+    cv2.imwrite(tmpfile, img) # write temp file                                                               
+    img = Image.open(tmpfile) # read as PIL again                                                             
+    if habitat_border is not None:
+        im_border = Image.open(habitat_border)
+        im_border = im_border.resize((plot_width,plot_width))
+        img.paste(im_border, (0,0), ImageOps.invert(ImageOps.grayscale(im_border)))
+    img = ImageOps.expand(img, border=10, fill='white')
+
+    # color bar                                                                                               
+    fig = plt.figure()
+    ax = fig.add_axes([0, 0.05, 0.06, 1]) # left, bottom, width, height                                       
+    norm = colors.Normalize(ranges[0],ranges[1])
+    colormap = plt.get_cmap('coolwarm_r') # _r for reverse (don't ask)                                        
+    cb = mpl.colorbar.ColorbarBase(ax, cm.ScalarMappable(norm=norm, cmap=colormap))#, label=r'$\sigma$')      
+    plt.savefig(tmpfile, bbox_inches='tight')
+    plt.close()
+    fig.clear()
+    cb = Image.open(tmpfile)
+    white_background = Image.new("RGB", (cb.size[0], 50), (255, 255, 255)) # adding some white space above bar
+    cb  = get_concat_v(white_background, cb)
+    cb = cb.resize((75,520))
+    img = get_concat_bar(img, cb)
+    os.remove(tmpfile)
+
+    return img
     
 # main
 def main():

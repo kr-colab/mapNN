@@ -1346,7 +1346,7 @@ def preprocess_density_grid():
             im = Image.fromarray(rgb)
             pngfile = os.path.join(args.out,"Maps",str(args.seed),str(args.simid)+".density.png")
             im.save(pngfile)
-
+    return
 
 
 
@@ -1371,12 +1371,11 @@ def plot_history():
     ax1.plot(epochs, loss, color="red", lw=0.5, label="loss")
     ax1.legend()
     fig.savefig(args.plot_history + "_plot.pdf", bbox_inches="tight")
-
+    return
 
 
 
 def ci():
-    import cv2
     map_width = 50
     plot_width = 500
     ci_file = args.out + "/Test_" + str(args.seed) + "/CIs.txt"
@@ -1441,54 +1440,29 @@ def ci():
     interval_map = np.clip(interval_map, 0, 255)
     interval_map = interval_map.astype('uint8') # (II) int
 
-    # heat map
+    # dispersal map
+
+    
+    # density map
+
+    
+    # dispersal CIs
     tmpfile =  args.out + "/Test_" + str(args.seed) + "/tmp_1.png"
-    for i in range(2):
-        # plot
-        img = Image.fromarray(interval_map[:,:,i])
-        img = img.convert('L')
-        img = img.resize((plot_width,plot_width))
-        img.save(tmpfile)
-        img = cv2.imread(tmpfile, cv2.IMREAD_GRAYSCALE)
-        colormap = plt.get_cmap('coolwarm_r')
-        img = (colormap(img) * 2**16).astype(np.uint16)[:,:,:3]
-        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-        if args.habitat_map is not None:
-            img = cookie_cutter(img, habitat_map_plot, fill=65535)
-        cv2.imwrite(tmpfile, img) # write temp file                                               
-        mapNN_png = Image.open(tmpfile) # read as PIL again                                       
-        if args.habitat_border is not None:
-            im_border = Image.open(args.habitat_border)
-            im_border = im_border.resize((plot_width,plot_width))
-            mapNN_png.paste(im_border, (0,0), ImageOps.invert(ImageOps.grayscale(im_border)))
-        mapNN_png = ImageOps.expand(mapNN_png, border=10, fill='white')
+    ranges = [min_sigma,max_sigma]
+    disp_cis = heatmap(interval_map[:,:,0], plot_width, ranges, tmpfile, habitat_map_plot, args.habitat_border)
 
-        # save color bar separately                                                                         
-        fig = plt.figure()
-        ax = fig.add_axes([0, 0.05, 0.06, 1]) # left, bottom, width, height
-        ranges=[ [min_sigma,max_sigma], [min_k,max_k] ]
-        norm = colors.Normalize(ranges[i][0],ranges[i][1])
-        colormap = plt.get_cmap('coolwarm_r') # _r for reverse (don't ask)                                  
-        cb = mpl.colorbar.ColorbarBase(ax, cm.ScalarMappable(norm=norm, cmap=colormap))#, label=r'$\sigma$')
-        plt.savefig(tmpfile, bbox_inches='tight')
-        plt.close()
-        fig.clear()
-        cb = Image.open(tmpfile)
-        white_background = Image.new("RGB", (cb.size[0], 50), (255, 255, 255)) # adding some white space above bar
-        cb  = get_concat_v(white_background, cb)
-        cb = cb.resize((75,520))                                                               
-
-        # combine                                                                                 
-        all_together = get_concat_bar(mapNN_png, cb)
-
-        # write
-        outfile =  args.out + "/Test_" + str(args.seed) + "/ci_" + ["disp","dens"][i] + ".png"
-        all_together.save(outfile)
-        os.remove(tmpfile)
-
-
-
-            
+    # density CIs
+    ranges = [min_k,max_k]
+    dens_cis = heatmap(interval_map[:,:,1], plot_width, ranges, tmpfile, habitat_map_plot, args.habitat_border)
+    
+    # combine
+    all_together  = get_concat_h(disp_cis, dens_cis)
+    
+    # # write                                                                                                                                                         
+    output_file = args.out + "/Test_" + str(args.seed) + "/empirical_cis.png"
+    all_together.save(output_file)
+    
+    return
     
     
 ### main ###
