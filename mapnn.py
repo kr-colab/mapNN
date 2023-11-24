@@ -654,79 +654,29 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
             prediction = np.clip(prediction, 0, 255)
             prediction = prediction.astype('uint8')
  
-            # (I) write dispersal and density maps (indvidually, for methods comparison; also combined plot))
-            rgb = np.concatenate([
-                np.full((map_width, map_width, 1), 0, dtype='uint8'),
-                np.full((map_width, map_width, 1), 0, dtype='uint8'),
-                np.reshape(trueval[:,:,0], (map_width,map_width,1)),
-                np.reshape(trueval[:,:,0], (map_width,map_width,1)),
-            ], axis=-1)
-            im = Image.fromarray(rgb.astype("uint8"))
+            # write individual dispersal and density maps (for methods comparison)
+            images = []
+            im = maplot(trueval[:,:,0], map_width, args.habitat_border)
             im.save(args.out + "/Test_" + str(args.seed) + "/mapNN_" + simid + "_dispersal_true.png")
-            if args.habitat_border is not None:
-                im_border = Image.open(args.habitat_border)
-                newsize = (np.array(im_border).shape[0],np.array(im_border).shape[1])
-                im = im.resize(newsize)
-                im_border.paste(im, (0, 0), im)
-                images = [im_border]  # start a list of combined images
-            else:
-                images = [im]
+            images.append(im)
             #
-            rgb = np.concatenate([
-                np.reshape(trueval[:,:,1], (map_width,map_width,1)),
-                np.full((map_width, map_width, 1), 0, dtype='uint8'),
-                np.full((map_width, map_width, 1), 0, dtype='uint8'),
-                np.reshape(trueval[:,:,1], (map_width,map_width,1)),
-            ], axis=-1)
-            im = Image.fromarray(rgb.astype("uint8"))
-            im.save(args.out + "/Test_" + str(args.seed) + "/mapNN_" + simid + "_density_true.png")
-            if args.habitat_border is not None:
-                im_border = Image.open(args.habitat_border)
-                newsize = (np.array(im_border).shape[0],np.array(im_border).shape[1])
-                im = im.resize(newsize)
-                im_border.paste(im, (0, 0), im)
-                images.append(im_border)
-            else:
-                images.append(im)
-            #
-            rgb = np.concatenate([
-                np.full((map_width, map_width, 1), 0, dtype='uint8'),
-                np.full((map_width, map_width, 1), 0, dtype='uint8'),
-                np.reshape(prediction[:,:,0], (map_width,map_width,1)),
-                np.reshape(prediction[:,:,0], (map_width,map_width,1)),
-            ], axis=-1)
-            im = Image.fromarray(rgb.astype("uint8"))
+            im = maplot(prediction[:,:,0], map_width, args.habitat_border)
             im.save(args.out + "/Test_" + str(args.seed) + "/mapNN_" + simid + "_dispersal_pred.png")
-            if args.habitat_border is not None:
-                im_border = Image.open(args.habitat_border)
-                newsize = (np.array(im_border).shape[0],np.array(im_border).shape[1])
-                im = im.resize(newsize)
-                im_border.paste(im, (0, 0), im)
-                images.append(im_border)
-            else:
-                images.append(im)
+            images.append(im)
             #
-            rgb = np.concatenate([
-                np.reshape(prediction[:,:,1], (map_width,map_width,1)),
-                np.full((map_width, map_width, 1), 0, dtype='uint8'),
-                np.full((map_width, map_width, 1), 0, dtype='uint8'),
-                np.reshape(prediction[:,:,1], (map_width,map_width,1)),
-            ], axis=-1)
-            im = Image.fromarray(rgb.astype("uint8"))
+            im = maplot(trueval[:,:,1], map_width, args.habitat_border)
+            im.save(args.out + "/Test_" + str(args.seed) + "/mapNN_" + simid + "_density_true.png")
+            images.append(im)
+            #
+            im = maplot(prediction[:,:,1], map_width, args.habitat_border)
             im.save(args.out + "/Test_" + str(args.seed) + "/mapNN_" + simid + "_density_pred.png")
-            if args.habitat_border is not None:
-                im_border = Image.open(args.habitat_border)
-                newsize = (np.array(im_border).shape[0],np.array(im_border).shape[1])
-                im = im.resize(newsize)
-                im_border.paste(im, (0, 0), im)
-                images.append(im_border)
-            else:
-                images.append(im)
-            #
+            images.append(im)
+
+            # combined PNG plot
             if args.habitat_border is None:
                 w = map_width
             else:
-                w = np.array(im_border).shape[0]
+                w = np.array(im).shape[0]
             comb_im = Image.new('RGBA', (w*2,w*2), color=(0,0,0,0))
             x_offset = 0
             comb_im.paste(images[0], (0,0))
@@ -746,21 +696,13 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
             locs *= factor
             locs = np.floor(locs).astype(int)  # round to nearest pixel, the circle function wants int
 
-            # heatmap: true dispersal
+            # heatmaps
             cb_params = [min_sigma, max_sigma, "\u03C3"]
             disp_true = heatmap(trueval[:,:,0], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)
-
-            # heatmap: mapNN dispersal
             disp_mapnn = heatmap(prediction[:,:,0], plot_width, tmpfile, None, habitat_map_plot, args.habitat_border, locs)
-
-            # heatmap: true density
             cb_params = [min_k,max_k, "D"]
             dens_true = heatmap(trueval[:,:,1], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)
-            
-            # heatmap: mapNN density
             dens_mapnn = heatmap(prediction[:,:,1], plot_width, tmpfile, None, habitat_map_plot, args.habitat_border, locs)
-
-            # merge pngs                                                                                                
             all_together_0  = get_concat_h(disp_true, disp_mapnn)
             all_together_1  = get_concat_h(dens_true, dens_mapnn)
             all_together  = get_concat_v(all_together_0, all_together_1)

@@ -122,6 +122,24 @@ def get_min_max(the_map, habi_map=None):
     return min_sigma,max_sigma,min_k,max_k
 
 
+# basic PNG map
+def maplot(demap, map_width, habitat_border=None):
+    rgb = np.concatenate([
+        np.full((map_width, map_width, 1), 0, dtype='uint8'),
+        np.full((map_width, map_width, 1), 0, dtype='uint8'),
+        np.reshape(demap[:,:], (map_width,map_width,1)),
+        np.reshape(demap[:,:], (map_width,map_width,1)),
+    ], axis=-1)
+    im = Image.fromarray(rgb.astype("uint8"))
+    if habitat_border is not None:
+        im_border = Image.open(habitat_border)
+        newsize = (np.array(im_border).shape[0],np.array(im_border).shape[1])
+        im = im.resize(newsize)
+        im_border.paste(im, (0, 0), im)
+        im = im_border
+    return im
+
+
 # plot heat map
 def heatmap(demap, plot_width, tmpfile, cb_params=None, habitat_map_plot=None, habitat_border=None, locs=None):
     # plot map
