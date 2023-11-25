@@ -190,7 +190,7 @@ def load_network(map_width,habitat_map):
     ### *** wolf hack for 10627 snps
     num_conv_iterations = 3
     print("\n\n\n\n\n\t\tCURRENTLY DOING A CUSTOM 3 CONV ITERATIONS, PROBABLY CHANGE THIS\n\n\n\n\n")
-    ### 
+    ###
 
     # organize pairs of individuals
     combinations = list(itertools.combinations(range(args.n), 2))
@@ -503,17 +503,17 @@ def predict():
     # predict
     print("predicting")
     os.makedirs(args.out + "/Test_" + str(args.seed), exist_ok=True)
-#    load_dl_modules()
- #   model, checkpointer, earlystop, reducelr = load_network(map_width, None)
+    load_dl_modules()
+    model, checkpointer, earlystop, reducelr = load_network(map_width, None)
     for b in range(int(np.ceil(args.num_pred/args.batch_size))): # loop to alleviate memory                    
         simids_batch = simids[b*args.batch_size:(b+1)*args.batch_size]
         partition["prediction"] = np.array(simids_batch)
-  #      generator = DataGenerator(partition["prediction"], **params)
-   #     predictions = model.predict_generator(generator)
+        generator = DataGenerator(partition["prediction"], **params)
+        predictions = model.predict_generator(generator)
         ###
         #np.save("temp1.npy", predictions)
         #exit()
-        predictions = np.load("temp1.npy")
+        #predictions = np.load("temp1.npy")
         ###
         unpack_predictions(predictions, map_width, targets, locs, simids_batch, targets)
     return
@@ -590,9 +590,11 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
         training_mean_sd = np.load(args.training_params)
 
     # read habitat map                                               
-    if args.habitat_map is not None:
+    if args.habitat_map is None:
+        habitat_map_plot = None
+    else:
         habitat_map = read_habitat_map(args.habitat_map, map_width)
-        habitat_map_plot = read_habitat_map(args.habitat_map, plot_width) 
+        habitat_map_plot = read_habitat_map(args.habitat_map, plot_width)
 
     # simulated data
     if args.empirical is None:
@@ -782,32 +784,21 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
             out_map = np.clip(out_map, 0, 255)
             out_map = out_map.astype('uint8')
 
-            # (I)  write dispersal and density maps                         
-            rgb = np.concatenate([
-                np.full((map_width, map_width, 1), 0, dtype='uint8'),
-                np.full((map_width, map_width, 1), 0, dtype='uint8'),
-                np.reshape(out_map[:,:,0], (map_width,map_width,1)),
-                np.reshape(out_map[:,:,0], (map_width,map_width,1)),
-            ], axis=-1)
-            im = Image.fromarray(rgb)#.astype("uint8"))
-            im.save(str(args.out) + "/Test_" + str(args.seed) + "/mapNN_empirical_dispersal_" + maps[i] + ".png")
-            #
-            rgb = np.concatenate([
-                np.reshape(out_map[:,:,1], (map_width,map_width,1)),
-                np.full((map_width, map_width, 1), 0, dtype='uint8'),
-                np.full((map_width, map_width, 1), 0, dtype='uint8'),
-                np.reshape(out_map[:,:,1], (map_width,map_width,1)),
-            ], axis=-1)
-            im = Image.fromarray(rgb)#.astype("uint8"))
-            im.save(args.out + "/Test_" + str(args.seed) + "/mapNN_empirical_density_" + maps[i] + ".png")
+            # dispersal PNG
+            im = maplot(out_map[:,:,0], map_width, args.habitat_border)
+            im.save(str(args.out) + "/Test_" + str(args.seed) + "/mapNN_empirical_dispersal_" + maps[i] + ".png")   
 
+            # density PNG
+            im = maplot(out_map[:,:,1], map_width, args.habitat_border)
+            im.save(args.out + "/Test_" + str(args.seed) + "/mapNN_empirical_density_" + maps[i] + ".png") 
+            
             # dispersal heatmap
             tmpfile =  args.out + "/Test_" + str(args.seed) + "/tmp_1.png"
-            cb_params = [min_sigma,max_sigma]
+            cb_params = [min_sigma, max_sigma, "\u03C3"]
             disp_map = heatmap(out_map[:,:,0], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)
 
             # density heatmap
-            cb_params = [min_k,max_k]
+            cb_params = [min_k,max_k, "D"]
             dens_map = heatmap(out_map[:,:,1], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)            
             
             # merge pngs
@@ -1083,15 +1074,9 @@ def preprocess_density_grid():
             vals = np.floor(vals)
             if args.habitat_map != None: # (only relevant for the png output) 
                 vals = cookie_cutter(vals, habitat_map, fill=0.0)
-            rgb = np.concatenate([                                                                  
-                                np.full((args.map_width,args.map_width, 1), 0, dtype='uint8'),      
-                                np.full((args.map_width,args.map_width, 1), 0, dtype='uint8'),      
-                                np.reshape(vals, (args.map_width,args.map_width,1)).astype('uint8'),
-                                np.reshape(vals, (args.map_width,args.map_width,1)).astype('uint8'),
-                            ], axis=-1)                                                             
-            im = Image.fromarray(rgb)
-            pngfile = os.path.join(args.out,"Maps",str(args.seed),str(args.simid)+".dispersal.png")           
-            im.save(pngfile)                                                                    
+            im = maplot(vals, args.map_width, args.habitat_border)
+            pngfile = os.path.join(args.out,"Maps",str(args.seed),str(args.simid)+".dispersal.png")
+            im.save(pngfile)
             #
             vals = arr[:,:,1]
             vals *= stats[1][1]
@@ -1102,13 +1087,7 @@ def preprocess_density_grid():
             vals = np.floor(vals)
             if args.habitat_map != None: # (only relevant for the png output)
                 vals = cookie_cutter(vals, habitat_map, fill=0.0)
-            rgb = np.concatenate([
-                                np.reshape(vals, (args.map_width,args.map_width,1)).astype('uint8'),
-                                np.full((args.map_width,args.map_width, 1), 0, dtype='uint8'),
-                                np.full((args.map_width,args.map_width, 1), 0, dtype='uint8'),
-                                np.reshape(vals, (args.map_width,args.map_width,1)).astype('uint8'),
-                            ], axis=-1)
-            im = Image.fromarray(rgb)
+            im = maplot(vals, args.map_width, args.habitat_border)
             pngfile = os.path.join(args.out,"Maps",str(args.seed),str(args.simid)+".density.png")
             im.save(pngfile)
     return
