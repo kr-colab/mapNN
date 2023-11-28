@@ -624,14 +624,28 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
             np.save(args.out + "/Test_" + str(args.seed) + "/mapNN_" + simid + "_pred.npy", prediction)
 
             # calc. error
-            mrae_0 = np.sum(abs(trueval[:,:,0]-prediction[:,:,0])/trueval[:,:,0]) 
-            #mrae_0 = np.sum(abs((trueval[:,:,0]+1)-(prediction[:,:,0]+1)) / (trueval[:,:,0]+1)) # hack to get MRAE with 0 values
-            mrae_0 /= relevant_pixels
-            mrae_1 = np.sum(abs(trueval[:,:,1]-prediction[:,:,1])/trueval[:,:,1])
-            #mrae_1 = np.sum(abs((trueval[:,:,0]+0.001)-(prediction[:,:,0]+0.001)) / (trueval[:,:,0]+0.001))
-            mrae_1 /= relevant_pixels
+            mrae_0,mrae_1,rmse_0,rmse_1,relevant_pixels = 0,0,0,0,0
+            for row in range(map_width):  # (whole-matrix operations would run into /0.0)
+                for col in range(map_width):
+                    if habitat_map is None:
+                        mrae_0 += abs(trueval[row,col,0]-prediction[row,col,0])/trueval[row,col,0]
+                        mrae_1 += abs(trueval[row,col,1]-prediction[row,col,1])/trueval[row,col,1]
+                        rmse_0 += (trueval[row,col,0]-prediction[row,col,0])**2
+                        rmse_1 += (trueval[row,col,1]-prediction[row,col,1])**2
+                        relevant_pixels += 1
+                    elif habitat_map[row,col] == 1:
+                        mrae_0 += abs(trueval[row,col,0]-prediction[row,col,0])/trueval[row,col,0]
+                        mrae_1 += abs(trueval[row,col,1]-prediction[row,col,1])/trueval[row,col,1]
+                        rmse_0 += (trueval[row,col,0]-prediction[row,col,0])**2
+                        rmse_1 += (trueval[row,col,1]-prediction[row,col,1])**2
+                        relevant_pixels += 1
+            # (unindent)
+            mrae_0 = np.sum(mrae_0) / relevant_pixels
+            mrae_1 = np.sum(mrae_1) / relevant_pixels
+            rmse_0 = np.sqrt(np.sum(rmse_0) / relevant_pixels)
+            rmse_1 = np.sqrt(np.sum(rmse_1) / relevant_pixels)
             with open(args.out + "/Test_" + str(args.seed) + "/mapNN_" + str(simid) + "_error.txt", "a") as out_f:
-                out_f.write(str(mrae_0) + "\t" + str(mrae_1) + "\n")
+                out_f.write(str(mrae_0) + "\t" + str(mrae_1) + "\t" + str(rmse_0) + "\t" + str(rmse_1) + "\n")
 
             # prepare min and max values for plotting
             # (inside loop, since it sometimes get's min/max from the true map, e.g. when counting realized density)
@@ -1184,25 +1198,19 @@ def ci():
     interval_map = np.clip(interval_map, 0, 255)
     interval_map = interval_map.astype('uint8') # (II) int
 
-    # dispersal map
-
-    
-    # density map
-
-    
     # dispersal CIs
     tmpfile =  args.out + "/Test_" + str(args.seed) + "/tmp_1.png"
-    cb_params = [min_sigma,max_sigma]
+    cb_params = [min_sigma, max_sigma, "\u03C3"]
     disp_cis = heatmap(interval_map[:,:,0], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border)
 
     # density CIs
-    cb_params = [min_k,max_k]
+    cb_params = [min_k, max_k, "D"]
     dens_cis = heatmap(interval_map[:,:,1], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border)
     
     # combine
     all_together  = get_concat_h(disp_cis, dens_cis)
     
-    # # write                                                                                                                                                         
+    # write                                                                                                                                                         
     output_file = args.out + "/Test_" + str(args.seed) + "/empirical_cis.png"
     all_together.save(output_file)
     
@@ -1240,4 +1248,5 @@ if args.predict is True:
 
 # get pixel-wise confidence intervals
 if args.bootstrap is True:
+    print("using bootstrap replicates to calculate CIs")
     ci()

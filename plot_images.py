@@ -71,8 +71,8 @@ def read_habitat_map(habitat_map, target_width):
     for i in range(outline.shape[0]):
         for j in range(outline.shape[1]):
             mean_val = np.mean(outline[i,j,0:3])
-            if mean_val < (255.0/2.0):
-                mask[i,j] = 1
+            if mean_val < (255.0/2.0): 
+                mask[i,j] = 1  # 1==land
 
     return mask
 
