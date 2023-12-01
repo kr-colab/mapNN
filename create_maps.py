@@ -26,7 +26,6 @@ parser.add_argument("--max_degree",help="maximum degree for polynomial function 
 parser.add_argument("--png",help="output optional red & blue PNG for visualization, alongside the primary output (.npy)", action="store_true")
 args=parser.parse_args()
 
-
 def random_points():
     degree = random.randint(0, args.max_degree) # includes lower and upper bound. 0=flat line, 1=sloped line, 2=curves, 3=up and downs.
     num_points = degree+1
@@ -260,6 +259,9 @@ else:
 # write
 mat = np.concatenate([s_mat,k_mat], axis=2)
 np.save(args.out, mat)
+pref = ".".join(args.out.split(".")[0:-1])
+np.savetxt(pref+"_disp.csv", mat[:,:,0], delimiter=",", fmt='%f')
+np.savetxt(pref+"_dens.csv", mat[:,:,1], delimiter=",", fmt='%f')
 
 # png
 if args.png:
