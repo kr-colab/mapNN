@@ -123,12 +123,12 @@ def get_min_max(the_map, habi_map=None):
 
 
 # basic PNG map
-def maplot(demap, map_width, habitat_border=None):
+def maplot(demap, plot_width, habitat_border=None):
     rgb = np.concatenate([
-        np.full((map_width, map_width, 1), 0, dtype='uint8'),
-        np.full((map_width, map_width, 1), 0, dtype='uint8'),
-        np.reshape(demap[:,:], (map_width,map_width,1)),
-        np.reshape(demap[:,:], (map_width,map_width,1)),
+        np.full((plot_width, plot_width, 1), 0, dtype='uint8'),
+        np.full((plot_width, plot_width, 1), 0, dtype='uint8'),
+        np.reshape(demap[:,:], (plot_width,plot_width,1)),
+        np.reshape(demap[:,:], (plot_width,plot_width,1)),
     ], axis=-1)
     im = Image.fromarray(rgb.astype("uint8"))
     if habitat_border is not None:

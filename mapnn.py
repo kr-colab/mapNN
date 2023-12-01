@@ -993,7 +993,7 @@ def preprocess_density_grid():
     rawfile = os.path.join(args.out,"Maps",str(args.seed),str(args.simid)+".raw")  # where to write the processed, raw counts
     if os.path.isfile(rawfile+".npy") is False:
         counts_file = counts[args.simid-1]  # table of recorded densities from simulation
-        counts_map = grid_density(counts_file,args.slim_width,args.map_width,250) # last argument is the generation before recording started
+        counts_map = grid_density(counts_file,args.slim_width)
         np.save(rawfile, counts_map)
 
     # RUN 2: normalize by mean and sd across all maps

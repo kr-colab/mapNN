@@ -1,17 +1,17 @@
 import numpy as np
 import sys, os
-from geopy import distance
-import random
-from PIL import Image
-from PIL import ImageOps
-from PIL import ImageDraw
-from PIL import ImageFont
-from numpy import asarray
-from skimage.measure import block_reduce
-import matplotlib as mpl
-from matplotlib import pyplot as plt
-from matplotlib import cm,colors
-import cv2
+# from geopy import distance
+# import random
+# from PIL import Image
+# from PIL import ImageOps
+# from PIL import ImageDraw
+# from PIL import ImageFont
+# from numpy import asarray
+# from skimage.measure import block_reduce
+# import matplotlib as mpl
+# from matplotlib import pyplot as plt
+# from matplotlib import cm,colors
+# import cv2
 
 # convert vcf to genotype array
 # filters:
@@ -210,69 +210,18 @@ def weighted_sample_dists(locs,loc_range,n,pairs,num_bins):
     return sample
 
 
-def grid_density(slim_output,w,grid_coarseness,current_gen):
-    De = np.zeros((grid_coarseness,grid_coarseness))                                     
-    distances = np.zeros((grid_coarseness,grid_coarseness))
-    offspring = np.zeros((grid_coarseness,grid_coarseness))    
-    num_dispersions = np.zeros((grid_coarseness,grid_coarseness))
-    min_dispersions = 1 # minimum number of dispersions to calculate dispersal rate (at least 1, to avoid 0-division)
-    gens = 0 # counting gens                                                                             
+def grid_density(slim_output,grid_coarseness):
+    # read data
+    with open(slim_output) as infile:                                                                                       
+        De = np.array(list(map(float,infile.readline().strip().split())))
+        sigmas = np.array(list(map(float,infile.readline().strip().split())))
 
-    # find pixel on W width map from x,y
-    def find_pixel(x,y,w,grid_coarseness):
-        i = int(np.floor((x/w) * grid_coarseness))
-        j = int(np.floor((y/w) * grid_coarseness))
-        if i == grid_coarseness: # sometimes they do land right on the edge                                
-            i = grid_coarseness-1
-        if j ==grid_coarseness:
-            j = grid_coarseness-1
+    # make map shape
+    De = np.reshape(De, (grid_coarseness,grid_coarseness))
+    sigmas = np.reshape(sigmas, (grid_coarseness,grid_coarseness))
+    counts = np.stack([sigmas,De],axis=2) 
 
-        # swap x,y to convert between slim and PNG, and flip (new) i-value
-        i,j = j,i
-        i = grid_coarseness-i-1 # -1 for zero indexing
-
-        return i,j
-
-    # parse data
-    with open(slim_output) as infile:                                                                              
-        infile.readline()  # header                                                                                     
-        for line in infile:                                                                                             
-            newline = line.strip().split()                                                                              
-            gen = int(newline[0])                                                                                       
-            x,y = float(newline[2]),float(newline[3])
-            i,j = find_pixel(x,y,w,grid_coarseness)
-            if gen > current_gen:                                                                                   
-                current_gen = int(gen)
-                gens+=1                                                                                             
-            if newline[1] == "ALIVE":                                                                               
-                De[(i,j)] += 1                                                                                      
-            elif newline[1] == "DEAD":                                                                              
-                count,distance = float(newline[4]),float(newline[5])
-                weighted_dist = distance*count
-                if weighted_dist > 0:
-                    distances[(i,j)] += weighted_dist
-                    offspring[(i,j)] += count
-                    num_dispersions[(i,j)] += 1
-            elif newline[1] == "MATING":
-                pass
-            else:                                                                                                   
-                print("issue")                                                                                      
-                exit()                                                                                              
-
-    # final calculations
-    for i in range(grid_coarseness):
-        for j in range(grid_coarseness):
-            if De[(i,j)] < min_dispersions: 
-                De[(i,j)] = 0
-    De /= gens
-    sigmas = np.zeros((grid_coarseness,grid_coarseness))
-    for i in range(grid_coarseness):
-        for j in range(grid_coarseness):
-            if num_dispersions[(i,j)] >= min_dispersions:
-                sigma = np.sqrt(distances[(i,j)] / offspring[(i,j)])
-                sigmas[(i,j)] = sigma
-                
-    counts = np.stack([sigmas,De],axis=2)
+    np.save('temp1NEW',counts)
 
     return counts
 
