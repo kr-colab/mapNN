@@ -989,121 +989,117 @@ def preprocess_density_grid():
         np.save(genofile, geno_mat)
         np.save(locfile, locs)
 
-    # RUN 1: count individuals on the density grid
-    rawfile = os.path.join(args.out,"Maps",str(args.seed),str(args.simid)+".raw")  # where to write the processed, raw counts
-    if os.path.isfile(rawfile+".npy") is False:
-        counts_file = counts[args.simid-1]  # table of recorded densities from simulation
-        counts_map = grid_density(counts_file,args.slim_width)
-        np.save(rawfile, counts_map)
+    # pipeline to normalize target
+    targetfile = os.path.join(args.out,"Maps",str(args.seed),str(args.simid)+".target")  # where to write the normalized target
+    if os.path.isfile(targetfile+".npy") is False:
 
-    # RUN 2: normalize by mean and sd across all maps
-    else:
-        targetfile = os.path.join(args.out,"Maps",str(args.seed),str(args.simid)+".target")  # where to write the normalized target
-        if os.path.isfile(targetfile+".npy") is False:
-            
-            # no mean sd provided
-            if args.training_params is None:
+        # get mean and sd
+        if args.training_params is not None:
+            stats = np.load(args.training_params)
+            max_disp = stats[0,2]
+            max_dens = stats[1,2]
+        elif os.path.isfile(args.out+"/mean_sd.npy"):
+            stats = np.load(args.out+"/mean_sd.npy")
+            max_disp = stats[0,2]
+            max_dens = stats[1,2]
+        else:  # no mean sd provided 
 
-                # load habitat map
-                if args.habitat_map is None:
-                    num_relevant_pixels = args.map_width**2
-                else:
-                    habitat_map = read_habitat_map(args.habitat_map, args.map_width)
-                    num_relevant_pixels = np.sum(habitat_map)
-
-                # loop through all maps to get mean                                    
-                means_summed_disp = 0
-                means_summed_dens = 0
-                max_disp = 0 # for PNG (see below)
-                max_dens = 0
-                total_counted = 0
-                for i in range(total_simids):
-                    arrpath = os.path.join(args.out,"Maps",str(args.seed),str(i)+".raw.npy") 
-                    if os.path.isfile(arrpath):
-                        total_counted += 1
-                        arr = np.load(arrpath)
-                        if np.max(arr[:,:,0]) > max_disp:  # (for plotting)
-                            max_disp = np.max(arr[:,:,0])
-                        if np.max(arr[:,:,1]) > max_dens:
-                            max_dens = np.max(arr[:,:,1])
-                        if args.habitat_map != None:
-                            arr = cookie_cutter(arr, habitat_map, fill=0.0, fxn=np.log)
-                        else:  # this strategy avoids log(0)'s
-                            arr = np.log(arr)
-                        # (unindent)                                                       
-                        means_summed_disp += np.nansum(arr[:,:,0])
-                        means_summed_dens += np.nansum(arr[:,:,1])
-                # (unindent)                                                       
-                mean_disp = means_summed_disp / num_relevant_pixels / total_counted
-                mean_dens = means_summed_dens / num_relevant_pixels / total_counted
-
-                # loop through second time to get sd                                   
-                sd_summed_disp = 0
-                sd_summed_dens = 0
-                for i in range(total_simids):
-                    arrpath = os.path.join(args.out,"Maps",str(args.seed),str(i)+".raw.npy") 
-                    if os.path.isfile(arrpath):
-                        arr = np.load(arrpath)
-                        if args.habitat_map != None:
-                            arr = cookie_cutter(arr, habitat_map, fill=np.nan, fxn=np.log)
-                        else:  # this strategy avoids log(0)'s
-                            arr = np.log(arr)
-                        # (unindent)                                                       
-                        sd_summed_disp += np.nansum((arr[:,:,0] - mean_disp)**2)
-                        sd_summed_dens += np.nansum((arr[:,:,1] - mean_dens)**2)
-                # (unindent)                                                       
-                sd_disp = (sd_summed_disp / num_relevant_pixels / total_counted)**(0.5)
-                sd_dens = (sd_summed_dens / num_relevant_pixels / total_counted)**(0.5)
-                stats = []
-                stats.append(np.array([mean_disp, sd_disp, max_disp]))
-                stats.append(np.array([mean_dens, sd_dens, max_dens]))
-                os.makedirs(args.out, exist_ok=True)
-                np.save(args.out+"/mean_sd", stats)
-
-            # mean and sd provided
+            # load habitat map
+            if args.habitat_map is None:
+                num_relevant_pixels = args.map_width**2
             else:
-                stats = np.load(args.training_params)
-                max_disp = stats[0,2] 
-                max_dens = stats[1,2]
+                habitat_map = read_habitat_map(args.habitat_map, args.map_width)
+                num_relevant_pixels = np.sum(habitat_map)
 
-            # normalize
-            arr = np.load(rawfile+".npy")
-            if args.habitat_map is not None:
-                arr = cookie_cutter(arr, habitat_map, fill=np.nan, fxn=np.log)  # nan
-            else:
-                arr = np.log(arr)
-            for t in range(2): 
-                arr[:,:,t] = (arr[:,:,t] - stats[t][0]) / stats[t][1]
-            if args.habitat_map is not None:
-                arr = cookie_cutter(arr, habitat_map, fill=0.0)  # zero
-            np.save(targetfile, arr)
+            # loop through all maps to get mean                                    
+            means_summed_disp = 0
+            means_summed_dens = 0
+            max_disp = 0 # for PNG (see below)
+            max_dens = 0
+            total_counted = 0
+            for i in range(total_simids):
+                counts_file = counts[args.simid-1]
+                if os.path.isfile(counts_file):
+                    total_counted += 1
+                    arr = grid_density(counts_file,args.slim_width)
+                    if np.max(arr[:,:,0]) > max_disp:  # (for plotting)
+                        max_disp = np.max(arr[:,:,0])
+                    if np.max(arr[:,:,1]) > max_dens:
+                        max_dens = np.max(arr[:,:,1])
+                    if args.habitat_map != None:
+                        arr = cookie_cutter(arr, habitat_map, fill=0.0, fxn=np.log)
+                    else:  # this strategy avoids log(0)'s
+                        arr = np.log(arr)
+                    # (unindent)                                                       
+                    means_summed_disp += np.nansum(arr[:,:,0])
+                    means_summed_dens += np.nansum(arr[:,:,1])
+            # (unindent)                                                       
+            mean_disp = means_summed_disp / num_relevant_pixels / total_counted
+            mean_dens = means_summed_dens / num_relevant_pixels / total_counted
 
-            # also visualize PNG of the raw  counts, rescaled to (0,255)
-            vals = arr[:,:,0]  
-            vals *= stats[0][1]
-            vals += stats[0][0]
-            vals = np.exp(vals)
-            vals /= max_disp 
-            vals *= 255
-            vals = np.floor(vals)
-            if args.habitat_map != None: # (only relevant for the png output) 
-                vals = cookie_cutter(vals, habitat_map, fill=0.0)
-            im = maplot(vals, args.map_width, args.habitat_border)
-            pngfile = os.path.join(args.out,"Maps",str(args.seed),str(args.simid)+".dispersal.png")
-            im.save(pngfile)
-            #
-            vals = arr[:,:,1]
-            vals *= stats[1][1]
-            vals += stats[1][0]
-            vals = np.exp(vals)
-            vals /= max_dens
-            vals *= 255
-            vals = np.floor(vals)
-            if args.habitat_map != None: # (only relevant for the png output)
-                vals = cookie_cutter(vals, habitat_map, fill=0.0)
-            im = maplot(vals, args.map_width, args.habitat_border)
-            pngfile = os.path.join(args.out,"Maps",str(args.seed),str(args.simid)+".density.png")
-            im.save(pngfile)
+            # loop through second time to get sd                                   
+            sd_summed_disp = 0
+            sd_summed_dens = 0
+            for i in range(total_simids):
+                counts_file = counts[args.simid-1]
+                if os.path.isfile(counts_file):
+                    arr = grid_density(counts_file,args.slim_width)
+                    if args.habitat_map != None:
+                        arr = cookie_cutter(arr, habitat_map, fill=np.nan, fxn=np.log)
+                    else:  # this strategy avoids log(0)'s
+                        arr = np.log(arr)
+                    # (unindent)                                                       
+                    sd_summed_disp += np.nansum((arr[:,:,0] - mean_disp)**2)
+                    sd_summed_dens += np.nansum((arr[:,:,1] - mean_dens)**2)
+            # (unindent)                                                       
+            sd_disp = (sd_summed_disp / num_relevant_pixels / total_counted)**(0.5)
+            sd_dens = (sd_summed_dens / num_relevant_pixels / total_counted)**(0.5)
+            stats = []
+            stats.append(np.array([mean_disp, sd_disp, max_disp]))
+            stats.append(np.array([mean_dens, sd_dens, max_dens]))
+            os.makedirs(args.out, exist_ok=True)
+            np.save(args.out+"/mean_sd", stats)
+
+        # normalize
+        counts_file = counts[args.simid-1]
+        arr = grid_density(counts_file,args.slim_width)
+        if args.habitat_map is not None:
+            arr = cookie_cutter(arr, habitat_map, fill=np.nan, fxn=np.log)  # nan
+        else:
+            arr = np.log(arr)
+        for t in range(2): 
+            arr[:,:,t] = (arr[:,:,t] - stats[t][0]) / stats[t][1]
+        if args.habitat_map is not None:
+            arr = cookie_cutter(arr, habitat_map, fill=0.0)  # zero
+        np.save(targetfile, arr)
+
+        # also visualize PNG of the raw  counts, rescaled to (0,255)
+        vals = arr[:,:,0]  
+        vals *= stats[0][1]
+        vals += stats[0][0]
+        vals = np.exp(vals)
+        vals /= max_disp 
+        vals *= 255
+        vals = np.floor(vals)
+        if args.habitat_map != None: # (only relevant for the png output) 
+            vals = cookie_cutter(vals, habitat_map, fill=0.0)
+        im = maplot(vals, args.map_width, args.habitat_border)
+        pngfile = os.path.join(args.out,"Maps",str(args.seed),str(args.simid)+".dispersal.png")
+        im.save(pngfile)
+        #
+        vals = arr[:,:,1]
+        vals *= stats[1][1]
+        vals += stats[1][0]
+        vals = np.exp(vals)
+        vals /= max_dens
+        vals *= 255
+        vals = np.floor(vals)
+        if args.habitat_map != None: # (only relevant for the png output)
+            vals = cookie_cutter(vals, habitat_map, fill=0.0)
+        im = maplot(vals, args.map_width, args.habitat_border)
+        pngfile = os.path.join(args.out,"Maps",str(args.seed),str(args.simid)+".density.png")
+        im.save(pngfile)
+
     return
 
 

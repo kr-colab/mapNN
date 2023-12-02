@@ -217,8 +217,8 @@ def grid_density(slim_output,grid_coarseness):
         sigmas = np.array(list(map(float,infile.readline().strip().split())))
 
     # make map shape
-    De = np.reshape(De, (grid_coarseness,grid_coarseness))
-    sigmas = np.reshape(sigmas, (grid_coarseness,grid_coarseness))
+    De = np.reshape(De, (int(grid_coarseness),int(grid_coarseness)))
+    sigmas = np.reshape(sigmas, (int(grid_coarseness),int(grid_coarseness)))
     counts = np.stack([sigmas,De],axis=2) 
 
     np.save('temp1NEW',counts)
