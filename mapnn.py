@@ -609,7 +609,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
                 prediction[:,:,t] = (prediction[:,:,t] * training_mean_sd[t][1]) + training_mean_sd[t][0]
             trueval = np.exp(trueval)
             prediction = np.exp(prediction)
-            
+
             # apply habitat mask  (up front, since you add +1 below to avoid undefined RAE)
             if args.habitat_map is not None:
                 trueval = cookie_cutter(trueval, habitat_map, fill=0.0)
@@ -627,7 +627,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
             mrae_0,mrae_1,rmse_0,rmse_1,relevant_pixels = 0,0,0,0,0
             for row in range(map_width):  # (whole-matrix operations would run into /0.0)
                 for col in range(map_width):
-                    if habitat_map is None:
+                    if args.habitat_map is None:
                         mrae_0 += abs(trueval[row,col,0]-prediction[row,col,0])/trueval[row,col,0]
                         mrae_1 += abs(trueval[row,col,1]-prediction[row,col,1])/trueval[row,col,1]
                         rmse_0 += (trueval[row,col,0]-prediction[row,col,0])**2
@@ -703,7 +703,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
 
             # heat map params
             output_file = args.out + "/Test_" + str(args.seed) + "/final_" + str(simid) + ".png"
-            tmpfile =  args.out + "/Test_" + str(args.seed) + "/tmp.png"
+            tmpfile =  args.out + "/Test_" + str(args.seed) + "/tmp" + str(simid) + ".png"
 
             # prep locs
             locs = np.load(locs_dict[simids[i]])
@@ -807,7 +807,6 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
             im.save(args.out + "/Test_" + str(args.seed) + "/mapNN_empirical_density_" + maps[i] + ".png") 
             
             # dispersal heatmap
-            tmpfile =  args.out + "/Test_" + str(args.seed) + "/tmp_1.png"
             cb_params = [min_sigma, max_sigma, "\u03C3"]
             disp_map = heatmap(out_map[:,:,0], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)
 
@@ -1138,14 +1137,7 @@ def ci():
         habitat_map_plot = read_habitat_map(args.habitat_map, plot_width)
 
     # load inputs
-    if args.simid is None:
-        targets,genos,locs = preds_from_preprocessed(args.out)
-        total_sims = len(targets)
-    else:
-        targets = [args.out + "/Maps/" + str(args.seed) + "/" + str(args.simid) + ".target.npy"]
-        genos = [args.out + "/Genos/" + str(args.seed) +"/" + str(args.simid) +".genos.npy"]
-        locs = [args.out + "/Locs/" + str(args.seed) +"/" + str(args.simid) +".locs.npy"]
-        total_sims = 1
+    targets,genos,locs = preds_from_preprocessed(args.out)
 
     # loop through preds
     R = len(targets) 
