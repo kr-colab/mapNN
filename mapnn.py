@@ -160,7 +160,7 @@ parser.add_argument(
     type=str,
     help="plot training history? default: False",
 )
-parser.add_argument("--bootstrap",default=False,action="store_true",help="treat test dir as bootstrap simulations, output uncertainty map")
+parser.add_argument("--bootstrap",default=None,help="path to point estimate map for bootstrapping")
 
 args = parser.parse_args()
 check_params(args)
@@ -1129,6 +1129,7 @@ def plot_history():
 
 
 def ci():
+    # params
     map_width = 50
     plot_width = 500
     ci_file = args.out + "/Test_" + str(args.seed) + "/CIs.txt"
@@ -1143,15 +1144,14 @@ def ci():
     R = len(targets) 
     sampling_dist = np.zeros((50,50,2,R))
     for r in range(R):
-        f = "/home/chriscs/Boxes116_wolves_v4_bs/Test_1/mapNN_" + str(r+1) + "_pred.npy"
+        f = args.out + "/Test_" + str(args.seed) + "/mapNN_" + str(r+1) + "_pred.npy"
         pred = np.load(f)
         sampling_dist[:,:,:,r] = pred
     
     # pixel wise intervals
     alpha = 0.05
     interval_map = np.zeros((50,50,2))
-    f = "/home/chriscs/Boxes116_wolves_v4_bs/Test_1/mapNN_1_pred.npy"  # same for all
-    true = np.load(f)
+    true = np.load(args.bootstrap)
     with open(ci_file,"w") as outfile:
         for i in range(50):
             for j in range(50):
@@ -1235,6 +1235,6 @@ if args.predict is True:
         empirical()
 
 # get pixel-wise confidence intervals
-if args.bootstrap is True:
+if args.bootstrap is not None:
     print("using bootstrap replicates to calculate CIs")
     ci()
