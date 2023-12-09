@@ -1136,12 +1136,10 @@ def ci():
     if args.habitat_map is not None:
         habitat_map = read_habitat_map(args.habitat_map, map_width)
         habitat_map_plot = read_habitat_map(args.habitat_map, plot_width)
-
-    # load inputs
-    targets,genos,locs = preds_from_preprocessed(args.out)
-
+        
     # loop through preds
-    R = len(targets) 
+    targets, _, _ = preds_from_preprocessed(args.out)
+    R = len(targets)
     sampling_dist = np.zeros((50,50,2,R))
     for r in range(R):
         f = args.out + "/Test_" + str(args.seed) + "/mapNN_" + str(r+1) + "_pred.npy"
@@ -1151,27 +1149,31 @@ def ci():
     # pixel wise intervals
     alpha = 0.05
     interval_map = np.zeros((50,50,2))
-    true = np.load(args.bootstrap)
+    true_map = np.load(args.bootstrap)
     with open(ci_file,"w") as outfile:
         for i in range(50):
             for j in range(50):
-                for p in range(2):
-                    # confidence interval
-                    dist = sampling_dist[i,j,p]
-                    dist.sort()
-                    thetahat_low =  dist[int(np.floor( R*   (alpha/2.0))) -1]
-                    thetahat_high = dist[int(np.ceil(  R*(1-(alpha/2.0))))  ]
-                    lower = 2*true[i,j,p] - thetahat_high
-                    upper = 2*true[i,j,p] - thetahat_low
-                    interval_map[i,j,p] = upper-lower
-                    
-                    # write
-                    outline = [["dispersal","density"][p]]
-                    outline += [i,j]
-                    outline.append(true[i,j,p])
-                    outline.append(lower)
-                    outline.append(upper)
-                    outfile.write("\t".join(map(str,outline)) + "\n")
+                if habitat_map[i,j] == 1:  # avoiding log(0)
+                    for p in range(2):
+                        # confidence interval
+                        true = true_map[i,j,p]
+                        dist = sampling_dist[i,j,p]
+                        true,dist = np.log(true),np.log(dist)  # log
+                        dist.sort()
+                        thetahat_low =  dist[int(np.floor( R*   (alpha/2.0))) -1]
+                        thetahat_high = dist[int(np.ceil(  R*(1-(alpha/2.0))))  ]
+                        lower = 2*true - thetahat_high
+                        upper = 2*true - thetahat_low
+                        true,lower,upper = np.exp(true),np.exp(lower),np.exp(upper)  # exp
+                        interval_map[i,j,p] = upper-lower
+
+                        # write
+                        outline = [["dispersal","density"][p]]
+                        outline += [i,j]
+                        outline.append(true)
+                        outline.append(lower)
+                        outline.append(upper)
+                        outfile.write("\t".join(map(str,outline)) + "\n")
 
     # find min and max values for plotting
     min_sigma,max_sigma,min_k,max_k = get_min_max(interval_map,habitat_map)
