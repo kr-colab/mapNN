@@ -1165,7 +1165,7 @@ def ci():
                         lower = 2*true - thetahat_high
                         upper = 2*true - thetahat_low
                         true,lower,upper = np.exp(true),np.exp(lower),np.exp(upper)  # exp
-                        interval_map[i,j,p] = upper-lower
+                        interval_map[i,j,p] = (upper-lower) / true
 
                         # write
                         outline = [["dispersal","density"][p]]
