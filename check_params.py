@@ -21,12 +21,6 @@ def check_params(args):
 
     # other param combinations
     if args.predict == True and args.empirical == None:
-        if args.num_pred != None:
-            if args.num_pred % args.batch_size != 0:
-                print(
-                    "\n\npred sets each need to be divisible by batch_size; otherwise some batches will have missing data\n\n"
-                )
-                exit()
         if args.n == None:
             print("missing sample size, via --n")
             exit()

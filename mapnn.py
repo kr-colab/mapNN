@@ -420,11 +420,6 @@ def train():
     # split into val,train sets                                                
     sim_ids = np.arange(0, total_sims)
     train, val = train_test_split(sim_ids, test_size=args.validation_split)
-    if len(val) % args.batch_size != 0 or len(train) % args.batch_size != 0:
-        print(
-            "\n\ntrain and val sets each need to be divisible by batch_size; otherwise some batches will have missing data\n\n"
-        )
-        exit()
 
     # organize "partitions" to hand to data generator
     partition = {}
