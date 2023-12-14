@@ -7,6 +7,7 @@ import msprime
 import tskit
 from attrs import define,field
 from read_input import *
+from process_input import coords2array
 import gc # garbage collect
 
 @define
@@ -150,11 +151,11 @@ class DataGenerator(tf.keras.utils.Sequence):
 
 
     def empirical_sample(self, ts, sampled_inds, n, N, W, scaling_factor):
-        locs = np.array(self.empirical_locs)
+        empirical_locs = np.array(self.empirical_locs)
         keep_indivs = []
 
         # ### nearest indiv
-        # np.random.shuffle(locs)
+        # np.random.shuffle(empirical_locs)
         # indiv_dict = {} 
         # for i in sampled_inds:
         #     indiv_dict[i] = 0
@@ -164,7 +165,7 @@ class DataGenerator(tf.keras.utils.Sequence):
         #         ind = ts.individual(i)
         #         loc = ind.location[0:2]
         #         loc /= scaling_factor
-        #         d = ( (loc[0]-locs[pt,0])**2 + (loc[1]-locs[pt,1])**2 )**(0.5)
+        #         d = ( (loc[0]-empirical_locs[pt,0])**2 + (loc[1]-empirical_locs[pt,1])**2 )**(0.5)
         #         dists[d] = i # see what I did there?
         #     nearest = dists[min(dists)]
         #     print(ts.individual(nearest).location[0:2] / scaling_factor)
@@ -182,7 +183,7 @@ class DataGenerator(tf.keras.utils.Sequence):
                     ind = ts.individual(i)                                        
                     loc = ind.location[0:2]                                       
                     loc /= scaling_factor                                         
-                    d = ( (loc[0]-locs[pt,0])**2 + (loc[1]-locs[pt,1])**2 )**(0.5)
+                    d = ( (loc[0]-empirical_locs[pt,0])**2 + (loc[1]-empirical_locs[pt,1])**2 )**(0.5)
                     if d <= radius:
                         keep_indivs.append(i)
                         sampled_inds.remove(i)
@@ -208,7 +209,7 @@ class DataGenerator(tf.keras.utils.Sequence):
             tss.append(tskit.load(fp))
         
         # for converting from SLiM map to new, pixelated map size
-        W = float(self.map_width)  # new map width, e.g., pixels
+        W = float(self.map_width)  # new map width (pixels)
         scaling_factor = self.slim_width / W
 
         # crop map
@@ -394,9 +395,8 @@ class DataGenerator(tf.keras.utils.Sequence):
 
             # shuffle, flip, reorient, and rescale locs
             locs = np.load(self.locs[ID])  # load
-            locs = locs[:, shuffled_indices]  # shuffle        
-            locs[0,:] = self.map_width - locs[0,:]  # flip first dimension (to match PNG)
-            locs = np.flip(locs, axis=0) # swap x and y (to match PNG indices)
+            locs = locs[:, shuffled_indices]  # shuffle
+            locs = coords2array(locs, self.map_width)  # reorient locs  
             X2[i, :] = locs
             
         # (unindent)

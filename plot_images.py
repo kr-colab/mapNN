@@ -152,8 +152,8 @@ def heatmap(demap, plot_width, tmpfile, cb_params=None, habitat_map_plot=None, h
     img = (colormap(img) * 2**16).astype(np.uint16)[:,:,:3]
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     if locs is not None:
-        for l in range(locs.shape[1]):
-            img = cv2.circle(img, (locs[0,l],locs[1,l]), radius=3, color=(0,0,0), thickness=1)
+        for l in range(locs.shape[1]):  # weird coordinates: 0,0 top left, first dim is x, second dim y  
+            img = cv2.circle(img, (locs[0,l],plot_width-locs[1,l]), radius=3, color=(0,0,0), thickness=1)
     if habitat_map_plot is not None:
         img = cookie_cutter(img, habitat_map_plot, fill=65535)
     cv2.imwrite(tmpfile, img) # write temp file                                                               

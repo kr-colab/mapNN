@@ -226,6 +226,20 @@ def grid_density(slim_output,grid_coarseness):
     return counts
 
 
+# convert locations from geographic coordinates to row and column positions in a 2d array
+#
+# What are the locs, exactly?  (updated 12.13.23)                                                                                
+# 1. We start with a randomly generated map array (np.savetxt to CSV); or .npy if applying habitat mask.                         
+# 2. If habitat PNG, arrange top left pointing northwest. Load PNG (PIL.Image.open()), mask map pixel 0,0 with habitat pixel 0,0.
+# 3. Load into SLiM (readCSV().asMatrix()), and it's already oriented the way we want in GUI with topleft pointing northwest.    
+# 4. In terms of array (row,col) indices, pixel 0,0 is topleft; pixel 0,50 is topright, etc. (np.asarray(Image.open()))          
+# 5. Individual locs from SLiM use cartesian coordinates: bottom left 0,0, top left 0,W, etc (p1.individuals.spatialPosition)    
+# 6. Convert x,y to array indices: (i) reverse first dim (W-i), and then (ii) swap the first and second dim (i,j=j,i).           
+def coords2array(locs, w):
+    new_locs = np.array(locs)
+    new_locs[0,:] = w - new_locs[0,:]  # flip first dimension (to match PNG)
+    new_locs = np.flip(new_locs, axis=0) # swap x and y (to match PNG indices)
+    return new_locs
 
 # main
 def main():

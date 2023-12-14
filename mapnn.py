@@ -251,7 +251,7 @@ def load_network(map_width,habitat_map):
     DENSE_pooled_1 = tf.keras.layers.Dense(args.filts2, activation="relu",   name="weightedFeatures_DENSE_disp_2")
     DENSE_linear = tf.keras.layers.Dense(2,     activation="linear", name="weightedFeatures_DENSE_disp_3")
 
-    # build locs table    
+    # build locs table
     pixels,mask = [],[]
     for i in range(map_width):
         for j in range(map_width):
@@ -467,7 +467,7 @@ def predict():
 
     # load inputs                                                                               
     if args.simid is None:
-        targets,genos,locs = preds_from_preprocessed(args.out)
+        targets,genos,locs = dict_from_preprocessed(args.out, prediction=True)
         total_sims = len(targets)
     else:
         targets = [args.out + "/Maps/" + str(args.seed) + "/" + str(args.simid) + ".target.npy"]
@@ -519,21 +519,20 @@ def predict():
 def empirical():
 
     # read locs
-    empirical_locs = read_locs(args.empirical + ".locs")
+    empirical_locs = read_list(args.empirical + ".locs", float)
     empirical_locs = np.array(empirical_locs)
     empirical_locs = empirical_locs.T
-
+    
     # read habitat map                                                          
-    targets,genos,locs = dict_from_preprocessed(args.out)  # need target dims
+    targets, _, _ = dict_from_preprocessed(args.out)  # getting dims of target map
     map_width = np.load(targets[0]).shape[0]
     if args.habitat_map == None:
         habitat_map = None
     else:
         habitat_map = read_habitat_map(args.habitat_map, map_width)
 
-    # process locs to match data generator from training
-    empirical_locs[0,:] = map_width - empirical_locs[0,:]  # flip first dimension (to match PNG)
-    empirical_locs = np.flip(empirical_locs, axis=0) # swap x and y (to match PNG indices)
+    # re-orient locs to match data generator from training / map array indices
+    test_locs = coords2array(empirical_locs, map_width)
     
     # load modules
     load_dl_modules()
@@ -551,7 +550,7 @@ def empirical():
             test_genos, (1, test_genos.shape[0], test_genos.shape[1])
         )
         test_locs = np.reshape(  # (inside loop just to be clean)
-            empirical_locs, (1, empirical_locs.shape[0], empirical_locs.shape[1])
+            test_locs, (1, test_locs.shape[0], test_locs.shape[1])
         )
         prediction = model.predict([test_genos, test_locs])
         prediction = np.squeeze(prediction, axis=0)  # get rid of extra dim
@@ -563,7 +562,7 @@ def empirical():
     #exit()
     #predictions = np.load("temp1.npy")
     ###
-    unpack_predictions(predictions, map_width, None, test_locs, None, None)
+    unpack_predictions(predictions, map_width, None, empirical_locs, None, None)
 
     return
 
@@ -571,7 +570,7 @@ def empirical():
 
 
 
-def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_name): 
+def unpack_predictions(predictions, map_width, targets, loc_list, simids, file_name): 
     import cv2 # do I need more coffee or why can't I move this out of the fxn?
 
     # params
@@ -701,8 +700,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
             tmpfile =  args.out + "/Test_" + str(args.seed) + "/tmp" + str(simid) + ".png"
 
             # prep locs
-            locs = np.load(locs_dict[simids[i]])
-            locs[1,:] = map_width - locs[1,:]  # flip y axis
+            locs = np.load(loc_list[simids[i]])
             factor = plot_width / map_width  # rescale
             locs *= factor
             locs = np.floor(locs).astype(int)  # round to nearest pixel, the circle function wants int
@@ -720,7 +718,7 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
 
             # write                                                                                                     
             all_together.save(output_file)
-            
+
     # empirical
     else:
         # params                                                                                  
@@ -728,12 +726,9 @@ def unpack_predictions(predictions, map_width, targets, locs_dict, simids, file_
         tmpfile =  args.out + "/Test_" + str(args.seed) + "/tmp.png"
         os.makedirs(os.path.join(args.out,"Test_" + str(args.seed)), exist_ok=True)
 
-        # prep locs                                                                               
-        locs = np.reshape(np.array(locs_dict),(2,args.n))  # delete extra dim                     
-        locs = np.flip(locs, axis=0)
-        locs[0,:] = map_width - locs[0,:] # flip x vals
-        locs[1,:] = map_width - locs[1,:] # flip y vals
-        factor = plot_width / map_width  # rescale                                                
+        # prep locs
+        factor = plot_width / map_width  # rescale
+        locs = np.array(loc_list)
         locs *= factor
         locs = np.floor(locs).astype(int)  # round to nearest pixel, the circle function wants int
 
@@ -827,12 +822,12 @@ def preprocess():
 
     # empirical locations                                   
     if args.empirical != None:
-        locs = read_locs(args.empirical + ".locs")
-        if len(locs) != args.n:
+        empirical_locs = read_list(args.empirical + ".locs", float)
+        if len(empirical_locs) != args.n:
             print("length of locs file doesn't match max_n")
             exit()
     else:
-        locs = None
+        empirical_locs = None
 
     # read in habitat map
     if args.habitat_map is None:
@@ -896,7 +891,7 @@ def preprocess():
         shuffle=None,
         genos=None,
         locs=None,
-        empirical_locs=locs,
+        empirical_locs=empirical_locs,
         map_width=args.map_width,
     )
     training_generator = DataGenerator([None], **params)
@@ -959,7 +954,7 @@ def preprocess_density_grid():
 
     # empirical locations                                   
     if args.empirical != None:
-        locs = read_locs(args.empirical + ".locs")
+        locs = read_list(args.empirical + ".locs", float)
         if len(locs) != args.n:
             print("length of locs file doesn't match max_n")
             exit()
@@ -1133,7 +1128,7 @@ def ci():
         habitat_map_plot = read_habitat_map(args.habitat_map, plot_width)
         
     # loop through preds
-    targets, _, _ = preds_from_preprocessed(args.out)
+    targets, _, _ = dict_from_preprocessed(args.out, prediction=True)
     R = len(targets)
     sampling_dist = np.zeros((50,50,2,R))
     for r in range(R):
