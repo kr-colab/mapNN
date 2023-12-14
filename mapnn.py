@@ -532,6 +532,9 @@ def empirical():
 
     # re-orient locs to match data generator from training / map array indices
     test_locs = coords2array(empirical_locs, map_width)
+    test_locs = np.reshape(
+        test_locs, (1, test_locs.shape[0], test_locs.shape[1])
+    )
     
     # load modules
     load_dl_modules()
@@ -547,9 +550,6 @@ def empirical():
         #ibd(test_genos, locs, args.phase, args.num_snps)
         test_genos = np.reshape(
             test_genos, (1, test_genos.shape[0], test_genos.shape[1])
-        )
-        test_locs = np.reshape(  # (inside loop just to be clean)
-            test_locs, (1, test_locs.shape[0], test_locs.shape[1])
         )
         prediction = model.predict([test_genos, test_locs])
         prediction = np.squeeze(prediction, axis=0)  # get rid of extra dim
