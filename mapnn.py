@@ -140,7 +140,6 @@ parser.add_argument(
     type=float,
     help="learning rate.",
 )
-parser.add_argument("--combinations", help="", default=2, type=int)
 parser.add_argument("--map_width", help="for preprocessing, the target size", type=int)
 parser.add_argument("--sample_grid", help="coarseness of grid for grid-sampling", default=None, type=float)
 parser.add_argument("--pairs", help="number of pairs to subsample", default=45, type=int)
@@ -647,7 +646,7 @@ def unpack_predictions(predictions, map_width, targets, loc_list, simids, file_n
                 min_sigma,max_sigma,min_k,max_k = get_min_max(trueval)
             else:                                                                                                         
                 min_sigma,max_sigma,min_k,max_k = args.ranges
-    
+
             # convert to (0,1) scale according to user specified ranges
             trueval[:,:,0] = (trueval[:,:,0]-min_sigma) / (max_sigma-min_sigma)
             trueval[:,:,1] = (trueval[:,:,1]-min_k) / (max_k-min_k)
@@ -712,9 +711,9 @@ def unpack_predictions(predictions, map_width, targets, loc_list, simids, file_n
             cb_params = [min_k,max_k, "D"]
             dens_true = heatmap(trueval[:,:,1], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)
             dens_mapnn = heatmap(prediction[:,:,1], plot_width, tmpfile, None, habitat_map_plot, args.habitat_border, locs)
-            all_together_0  = get_concat_h(disp_true, disp_mapnn)
-            all_together_1  = get_concat_h(dens_true, dens_mapnn)
-            all_together  = get_concat_v(all_together_0, all_together_1)
+            all_together_0  = concat_h(disp_true, disp_mapnn)
+            all_together_1  = concat_h(dens_true, dens_mapnn)
+            all_together  = concat_v(all_together_0, all_together_1)
 
             # write                                                                                                     
             all_together.save(output_file)
@@ -802,10 +801,10 @@ def unpack_predictions(predictions, map_width, targets, loc_list, simids, file_n
 
             # density heatmap
             cb_params = [min_k,max_k, "D"]
-            dens_map = heatmap(out_map[:,:,1], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)            
+            dens_map = heatmap(out_map[:,:,1], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)
             
             # merge pngs
-            all_together  = get_concat_h(disp_map, dens_map)
+            all_together  = concat_h(disp_map, dens_map)
 
             # write
             all_together.save(output_pref + maps[i] + ".png")
@@ -1188,7 +1187,7 @@ def ci():
     dens_cis = heatmap(interval_map[:,:,1], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border)
     
     # combine
-    all_together  = get_concat_h(disp_cis, dens_cis)
+    all_together  = concat_h(disp_cis, dens_cis)
     
     # write                                                                                                                                                         
     output_file = args.out + "/Test_" + str(args.seed) + "/empirical_cis.png"

@@ -78,17 +78,17 @@ def read_habitat_map(habitat_map, target_width):
 
 
 # plotting fxns                                                                                                   
-def get_concat_h(im1, im2):
+def concat_h(im1, im2):
     dst = Image.new('RGB', (im1.width + im2.width, im1.height))
     dst.paste(im1, (0, 0))
     dst.paste(im2, (im1.width, 0))
     return dst
-def get_concat_bar(im1, im2):
+def concat_bar(im1, im2):
     dst = Image.new('RGB', (im1.width + im2.width, im1.height))#, (255,255,255))                                  
     dst.paste(im1, (0, 0))
     dst.paste(im2, (im1.width, im1.height-im2.height))
     return dst
-def get_concat_v(im1, im2):
+def concat_v(im1, im2):
     dst = Image.new('RGB', (im1.width, im1.height + im2.height))
     dst.paste(im1, (0, 0))
     dst.paste(im2, (0, im1.height))
@@ -152,12 +152,12 @@ def heatmap(demap, plot_width, tmpfile, cb_params=None, habitat_map_plot=None, h
     img = (colormap(img) * 2**16).astype(np.uint16)[:,:,:3]
     img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
     if locs is not None:
-        for l in range(locs.shape[1]):  # weird coordinates: 0,0 top left, first dim is x, second dim y  
+        for l in range(locs.shape[1]):  # weird coordinates: 0,0 top left, first dim is x, second dim y
             img = cv2.circle(img, (locs[0,l],plot_width-locs[1,l]), radius=3, color=(0,0,0), thickness=1)
     if habitat_map_plot is not None:
         img = cookie_cutter(img, habitat_map_plot, fill=65535)
-    cv2.imwrite(tmpfile, img) # write temp file                                                               
-    img = Image.open(tmpfile) # read as PIL again                                                             
+    cv2.imwrite(tmpfile, img)  # write temp file
+    img = Image.open(tmpfile)  # read as PIL again
     if habitat_border is not None:
         im_border = Image.open(habitat_border)
         im_border = im_border.resize((plot_width,plot_width))
@@ -176,9 +176,9 @@ def heatmap(demap, plot_width, tmpfile, cb_params=None, habitat_map_plot=None, h
         fig.clear()
         cb = Image.open(tmpfile)
         white_background = Image.new("RGB", (cb.size[0], 50), (255, 255, 255)) # adding some white space above bar
-        cb  = get_concat_v(white_background, cb)
+        cb  = concat_v(white_background, cb)
         cb = cb.resize((75,520))
-        img = get_concat_bar(img, cb)
+        img = concat_bar(img, cb)
         os.remove(tmpfile)
 
         # text label
