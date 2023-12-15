@@ -34,7 +34,7 @@ def random_points():
     return degree,x_pos,y_pos
 
 
-def psuedo_log_uniform(min_val, max_val):
+def pseudo_log_uniform(min_val, max_val):
     if min_val == 0:
         sys.stderr.write("min_val=0; drawing from pseudo log-uniform with +1\n")
         x = loguniform.rvs(min_val+1, max_val+1) - 1
@@ -83,7 +83,7 @@ def fit_curve(degree, x_pos, y_pos):
 def assign_values(num_segments, min_val, max_val):    
     values = []
     mag = np.random.uniform(0, max_val-min_val) # this will represent the RANGE of values. I want this to be uniform, I think.
-    start = psuedo_log_uniform(min_val, max_val-mag)
+    start = pseudo_log_uniform(min_val, max_val-mag)
     end = start + mag
     values.append(start)
     values.append(end)
@@ -235,7 +235,7 @@ random.seed(args.seed)
 # sigma channel
 degree,x_pos,y_pos = random_points() # draw random polynomial degree and points to draw lines through
 if degree == 0: # if zero degree, create a flat map
-    sigma = psuedo_log_uniform(args.min_c1,args.max_c1)
+    sigma = pseudo_log_uniform(args.min_c1,args.max_c1)
     s_mat = np.full((args.w,args.w,1), sigma)
 else:
     num_segments,intercepts,ys = fit_curve(degree, x_pos, y_pos) # fit curve, extract some data from plot
@@ -247,7 +247,7 @@ else:
 # K channel
 degree,x_pos,y_pos = random_points()    
 if degree == 0:
-    k = psuedo_log_uniform(args.min_c2,args.max_c2)
+    k = pseudo_log_uniform(args.min_c2,args.max_c2)
     k_mat = np.full((args.w,args.w,1), k)
 else:
     num_segments,intercepts,ys = fit_curve(degree, x_pos, y_pos)
