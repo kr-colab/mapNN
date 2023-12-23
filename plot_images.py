@@ -142,6 +142,7 @@ def maplot(demap, plot_width, habitat_border=None):
 
 # plot heat map
 def heatmap(demap, plot_width, tmpfile, cb_params=None, habitat_map_plot=None, habitat_border=None, locs=None):
+    
     # plot map
     img = Image.fromarray(demap)
     img = img.convert('L')
@@ -168,9 +169,12 @@ def heatmap(demap, plot_width, tmpfile, cb_params=None, habitat_map_plot=None, h
     if cb_params is not None:
         fig = plt.figure()
         ax = fig.add_axes([0, 0.05, 0.06, 1]) # left, bottom, width, height                                       
-        norm = colors.Normalize(cb_params[0],cb_params[1])
+        #norm = colors.Normalize(cb_params[0],cb_params[1])
+        norm = colors.LogNorm(cb_params[0],cb_params[1]) # log10 scale
         colormap = plt.get_cmap('coolwarm_r') # _r for reverse (don't ask)                                        
-        cb = mpl.colorbar.ColorbarBase(ax, cm.ScalarMappable(norm=norm, cmap=colormap))#, label=r'$\sigma$')      
+        cb = mpl.colorbar.ColorbarBase(ax, cm.ScalarMappable(norm=norm, cmap=colormap))#, label=r'$\sigma$')
+        #cb.set_ticks([1, 2, 4, 8])  # detailed tick formatting
+        #cb.set_ticklabels(['$1$', '$2$', '$2^2$', '$2^3$'])  
         plt.savefig(tmpfile, bbox_inches='tight')
         plt.close()
         fig.clear()

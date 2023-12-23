@@ -778,30 +778,41 @@ def unpack_predictions(predictions, map_width, targets, loc_list, simids, file_n
             print("mean K (or density, if you counted that) (SLim units):", np.sum(out_map[:,:,1])/relevant_pixels)
 
             # convert to (0,1) scale
-            out_map[:,:,0] = (out_map[:,:,0]-min_sigma) / (max_sigma-min_sigma)
-            out_map[:,:,1] = (out_map[:,:,1]-min_k) / (max_k-min_k)
+            png_map = np.empty((map_width,map_width,2))
+            png_map[:,:,0] = (out_map[:,:,0]-min_sigma) / (max_sigma-min_sigma)
+            png_map[:,:,1] = (out_map[:,:,1]-min_k) / (max_k-min_k)
 
             # convert to PNG scale+format
-            out_map *= 255
-            out_map = np.round(out_map)
-            out_map = np.clip(out_map, 0, 255)
-            out_map = out_map.astype('uint8')
+            png_map *= 255
+            png_map = np.round(png_map)
+            png_map = np.clip(png_map, 0, 255)
+            png_map = png_map.astype('uint8')
 
             # dispersal PNG
-            im = maplot(out_map[:,:,0], map_width, args.habitat_border)
+            im = maplot(png_map[:,:,0], map_width, args.habitat_border)
             im.save(str(args.out) + "/Test_" + str(args.seed) + "/mapNN_empirical_dispersal_" + maps[i] + ".png")   
 
             # density PNG
-            im = maplot(out_map[:,:,1], map_width, args.habitat_border)
+            im = maplot(png_map[:,:,1], map_width, args.habitat_border)
             im.save(args.out + "/Test_" + str(args.seed) + "/mapNN_empirical_density_" + maps[i] + ".png") 
+
+            # rescaling for log10 scale heatmap            
+            heat_map = cookie_cutter(out_map, habitat_map, fill=np.nan, fxn=np.log10)
+            heat_map[:,:,0] = (heat_map[:,:,0]-np.log10(min_sigma)) / (np.log10(max_sigma)-np.log10(min_sigma))	
+            heat_map[:,:,1] = (heat_map[:,:,1]-np.log10(min_k)) / (np.log10(max_k)-np.log10(min_k))
+            heat_map *= 255      		
+            heat_map = np.round(heat_map) 	
+            heat_map = np.clip(heat_map, 0, 255)
+            heat_map = cookie_cutter(heat_map, habitat_map, fill=0.0)
+            heat_map = heat_map.astype('uint8')
             
             # dispersal heatmap
             cb_params = [min_sigma, max_sigma, "\u03C3"]
-            disp_map = heatmap(out_map[:,:,0], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)
+            disp_map = heatmap(heat_map[:,:,0], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)
 
             # density heatmap
             cb_params = [min_k,max_k, "D"]
-            dens_map = heatmap(out_map[:,:,1], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)
+            dens_map = heatmap(heat_map[:,:,1], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)
             
             # merge pngs
             all_together  = concat_h(disp_map, dens_map)
