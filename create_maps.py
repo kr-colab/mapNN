@@ -191,13 +191,14 @@ def make_mat(segment_map, values, ys):
 
 
 def flip(mat):
+    newmat = np.array(newmat)
     if random.randint(0,1) == 0:
-        mat = np.flip(mat, axis=0)
+        newmat = np.flip(newmat, axis=0)
     if random.randint(0,1) == 0:
-        mat = np.flip(mat, axis=1)
+        newmat = np.flip(newmat, axis=1)
     if random.randint(0,1) == 0:
-        mat = np.rot90(mat)
-    return mat
+        newmat = np.rot90(newmat)
+    return newmat
 
 
 def make_png(s_mat, k_mat):
