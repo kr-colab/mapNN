@@ -241,15 +241,6 @@ def load_network(map_width,habitat_map):
     print("\nfeature block:", feature_block.shape)
     l = tf.stack(ls, axis=1) # stack locs from all pairs 
 
-    # initialize shared layers
-    pixel_stack = []
-    DENSE_loc_disp_0 = tf.keras.layers.Dense(args.filts1, activation="relu", name="locs_DENSE_disp_0")
-    DENSE_loc_disp_1 = tf.keras.layers.Dense(args.filts1, activation="relu", name="locs_DENSE_disp_1")
-    DENSE_weighted = tf.keras.layers.Dense(args.filts2, activation="relu", name="weightedFeatures_DENSE_disp_0")
-    DENSE_pooled_0 = tf.keras.layers.Dense(args.filts2, activation="relu",   name="weightedFeatures_DENSE_disp_1")
-    DENSE_pooled_1 = tf.keras.layers.Dense(args.filts2, activation="relu",   name="weightedFeatures_DENSE_disp_2")
-    DENSE_linear = tf.keras.layers.Dense(2,     activation="linear", name="weightedFeatures_DENSE_disp_3")
-
     # build locs table
     pixels,mask = [],[]
     for i in range(map_width):
