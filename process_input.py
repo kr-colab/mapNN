@@ -1,17 +1,5 @@
 import numpy as np
 import sys, os
-# from geopy import distance
-# import random
-# from PIL import Image
-# from PIL import ImageOps
-# from PIL import ImageDraw
-# from PIL import ImageFont
-# from numpy import asarray
-# from skimage.measure import block_reduce
-# import matplotlib as mpl
-# from matplotlib import pyplot as plt
-# from matplotlib import cm,colors
-# import cv2
 
 # convert vcf to genotype array
 # filters:

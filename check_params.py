@@ -10,17 +10,21 @@ def check_params(args):
             print("saved model with specified output name already exists (i.e. --out)")
             exit()
 
-    # arguments for training
-    if args.train == True:
+    # params shared across pipelines
+    if args.preprocess==True or args.preprocess_density_grid==True or args.train==True or args.predict==True or args.bootstrap==True:
+        if args.seed == None:
+            print("specify seed via --seed")
+            exit()
+        if args.out == None:
+            print("specify seed via --seed")
+            exit()
+
+    if args.preprocess==True or args.preprocess_density_grid==True or args.train==True or args.predict==True:
         if args.num_snps == None:
             print("specify num snps via --num_snps")
             exit()
         if args.n == None:
             print("specify max sample size via --n")
             exit()
+            
 
-    # other param combinations
-    if args.predict == True and args.empirical == None:
-        if args.n == None:
-            print("missing sample size, via --n")
-            exit()

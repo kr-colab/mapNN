@@ -1,0 +1,12 @@
+gpustat==1.1
+numpy==1.24.3
+geopy==2.3.0
+attrs==23.1.0
+msprime==1.2.0
+tskit==0.5.5
+matplotlib==3.7.2
+tensorflow==2.12.1
+scipy==1.11.1
+scikit-image==0.22.0
+scikit-learn==1.3.0
+opencv-python==4.9.0.80

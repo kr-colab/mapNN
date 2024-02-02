@@ -83,7 +83,7 @@ parser.add_argument(
     type=float,
     help="0-1, proportion of samples to use for validation.",
 )
-parser.add_argument("--batch_size", default=1, type=int, help="batch size for training")
+parser.add_argument("--batch_size", default=10, type=int, help="batch size for training")
 parser.add_argument("--max_epochs", default=1000,
                     type=int, help="max epochs for training")
 parser.add_argument(
@@ -194,7 +194,10 @@ def load_network(map_width,habitat_map):
     # organize pairs of individuals
     combinations = list(itertools.combinations(range(args.n), 2))
     combinations = random.sample(combinations, args.pairs)
-    combinations_encode = random.sample(combinations, args.pairs_encode)
+    if args.pairs_encode is not None:
+        combinations_encode = random.sample(combinations, args.pairs_encode)
+    else:
+        combinations_encode = list(combinations)
     combinations = list2dict(combinations) # (using tuples as dict keys seems to work)
     combinations_encode = list2dict(combinations_encode)
 
@@ -598,9 +601,6 @@ def unpack_predictions(predictions, map_width, targets, loc_list, simids, file_n
             if args.habitat_map is not None:
                 trueval = cookie_cutter(trueval, habitat_map, fill=0.0)
                 prediction = cookie_cutter(prediction, habitat_map, fill=0.0)
-                relevant_pixels = np.sum(habitat_map)
-            else:
-                relevant_pixels = np.sum(map_width**2)
             
             # save true and pred as arrays
             simid = file_name[simids[i]].split("/")[-1].split(".")[0]
@@ -609,7 +609,7 @@ def unpack_predictions(predictions, map_width, targets, loc_list, simids, file_n
 
             # calc. error
             mrae_0,mrae_1,rmse_0,rmse_1,relevant_pixels = 0,0,0,0,0
-            for row in range(map_width):  # (whole-matrix operations would run into /0.0)
+            for row in range(map_width):  # (loop, b/c whole-matrix operations would run into /0)
                 for col in range(map_width):
                     if args.habitat_map is None:
                         mrae_0 += abs(trueval[row,col,0]-prediction[row,col,0])/trueval[row,col,0]
@@ -623,6 +623,7 @@ def unpack_predictions(predictions, map_width, targets, loc_list, simids, file_n
                         rmse_0 += (trueval[row,col,0]-prediction[row,col,0])**2
                         rmse_1 += (trueval[row,col,1]-prediction[row,col,1])**2
                         relevant_pixels += 1
+
             # (unindent)
             mrae_0 = np.sum(mrae_0) / relevant_pixels
             mrae_1 = np.sum(mrae_1) / relevant_pixels
@@ -1140,7 +1141,7 @@ def ci():
     # pixel wise intervals
     alpha = 0.05
     interval_map = np.zeros((50,50,2))
-    true_map = np.load(args.bootstrap)
+    true_map = np.load(args.bootstrap)  # (point estimate)
     with open(ci_file,"w") as outfile:
         for i in range(50):
             for j in range(50):
@@ -1191,7 +1192,7 @@ def ci():
     # combine
     all_together  = concat_h(disp_cis, dens_cis)
     
-    # write                                                                                                                                                         
+    # write
     output_file = args.out + "/Test_" + str(args.seed) + "/empirical_cis.png"
     all_together.save(output_file)
     
