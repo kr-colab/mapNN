@@ -4,7 +4,7 @@ Neural network for estimating demographic maps from SNPs
 
 
 
-### Install
+## Install instuctions
 
 ```
 conda create -n mapnn python=3.9 --yes
@@ -21,7 +21,7 @@ unzip Examples.zip
 python mapnn.py --train --out Examples/Example_data/ --seed 123 --num_snps 5000 --n 100
 ```
 
-GPUs
+Additional installation instructions for GPUs:
 ```
 mamba install cudatoolkit=11.8.0 cuda-nvcc -c conda-forge -c nvidia --yes
 python3 -m pip install nvidia-cudnn-cu11==8.6.0.163 tensorflow==2.12.1
@@ -37,7 +37,7 @@ source $CONDA_PREFIX/etc/conda/activate.d/env_vars.sh
 Test command:
 
 ```
-(mapnn) chriscs@poppy:~/Software/mapNN$ python mapnn.py --train --out Examples/Example_data/ --seed 123 --num_snps 5000 --n 100 --gpu any
+python mapnn.py --train --out Examples/Example_data/ --seed 123 --num_snps 5000 --n 100 --gpu any
 ```
 
 And simultaneously run `nvidia-smi` or `gpustat` to make sure the GPU is firing.

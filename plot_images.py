@@ -146,7 +146,7 @@ def heatmap(demap, plot_width, tmpfile, cb_params=None, habitat_map_plot=None, h
     # plot map
     img = Image.fromarray(demap)
     img = img.convert('L')
-    img = img.resize((plot_width,plot_width))
+    img = img.resize((plot_width,plot_width), resample=Image.BICUBIC) #resample=Image.BILINEAR)  #resample=Image.NEAREST)
     img.save(tmpfile)
     img = cv2.imread(tmpfile, cv2.IMREAD_GRAYSCALE)
     colormap = plt.get_cmap('coolwarm_r')
@@ -171,10 +171,11 @@ def heatmap(demap, plot_width, tmpfile, cb_params=None, habitat_map_plot=None, h
         ax = fig.add_axes([0, 0.05, 0.06, 1]) # left, bottom, width, height                                       
         #norm = colors.Normalize(cb_params[0],cb_params[1])
         norm = colors.LogNorm(cb_params[0],cb_params[1]) # log10 scale
-        colormap = plt.get_cmap('coolwarm_r') # _r for reverse (don't ask)                                        
+        colormap = plt.get_cmap('coolwarm_r') # _r for reverse (don't ask)
         cb = mpl.colorbar.ColorbarBase(ax, cm.ScalarMappable(norm=norm, cmap=colormap))#, label=r'$\sigma$')
         #cb.set_ticks([1, 2, 4, 8])  # detailed tick formatting
-        #cb.set_ticklabels(['$1$', '$2$', '$2^2$', '$2^3$'])  
+        #cb.set_ticklabels(['$1$', '$2$', '$2^2$', '$2^3$'])
+        cb.ax.tick_params(labelsize=25) 
         plt.savefig(tmpfile, bbox_inches='tight')
         plt.close()
         fig.clear()
