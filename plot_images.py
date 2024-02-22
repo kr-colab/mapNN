@@ -168,14 +168,21 @@ def heatmap(demap, plot_width, tmpfile, cb_params=None, habitat_map_plot=None, h
     # color bar
     if cb_params is not None:
         fig = plt.figure()
-        ax = fig.add_axes([0, 0.05, 0.06, 1]) # left, bottom, width, height                                       
+        ax = fig.add_axes([0, 0.05, 0.06, 1]) # left, bottom, width, height     
         #norm = colors.Normalize(cb_params[0],cb_params[1])
         norm = colors.LogNorm(cb_params[0],cb_params[1]) # log10 scale
-        colormap = plt.get_cmap('coolwarm_r') # _r for reverse (don't ask)
-        cb = mpl.colorbar.ColorbarBase(ax, cm.ScalarMappable(norm=norm, cmap=colormap))#, label=r'$\sigma$')
-        #cb.set_ticks([1, 2, 4, 8])  # detailed tick formatting
-        #cb.set_ticklabels(['$1$', '$2$', '$2^2$', '$2^3$'])
-        cb.ax.tick_params(labelsize=25) 
+        r = cb_params[1]-cb_params[0]
+        ticks = [cb_params[0],cb_params[0]+(r/4),cb_params[0]+(r/2),cb_params[0]+(3*r/4),cb_params[1]]
+        colormap = plt.get_cmap('coolwarm_r') # _r for reverse
+        cb = mpl.colorbar.ColorbarBase(ax, cm.ScalarMappable(norm=norm, cmap=colormap))
+        labels = cb.ax.minorticks_off()  # was key to getting rid of "default" ticks
+        cb.set_ticks(ticks)
+        if cb_params[0] >= 0.1 and cb_params[1] <= 100:
+            cb.set_ticklabels(np.round(np.array(ticks), 1))
+        else:
+            cb.set_ticklabels([f'{x:.1e}' for x in ticks])  # scientific notation
+        cb.ax.tick_params(labelsize=25)
+
         plt.savefig(tmpfile, bbox_inches='tight')
         plt.close()
         fig.clear()
@@ -189,7 +196,7 @@ def heatmap(demap, plot_width, tmpfile, cb_params=None, habitat_map_plot=None, h
         # text label
         font_path = os.path.join(cv2.__path__[0],'qt','fonts','DejaVuSans-Oblique.ttf')               
         myfont = ImageFont.truetype(font_path, size=24)                                       
-        t = ImageDraw.Draw(img) # (this syntax doesn't make any sense but it works?) 
-        t.text((540, 26), cb_params[2], fill=(0,0,0), font=myfont) # sigma                        
+        t = ImageDraw.Draw(img) 
+        t.text((540, 15), cb_params[2], fill=(0,0,0), font=myfont)
 
     return img

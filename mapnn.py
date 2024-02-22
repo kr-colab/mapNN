@@ -608,7 +608,7 @@ def unpack_predictions(predictions, map_width, targets, loc_list, simids, file_n
             np.save(args.out + "/Test_" + str(args.seed) + "/mapNN_" + simid + "_pred.npy", prediction)
 
             # calc. error
-            mrae_0,mrae_1,rmse_0,rmse_1,relevant_pixels = 0,0,0,0,0
+            mrae_0,mrae_1,rmse_0,rmse_1,relevant_pixels,trues_0,preds_0,trues_1,preds_1 = 0,0,0,0,0,[],[],[],[]
             for row in range(map_width):  # (loop, b/c whole-matrix operations would run into /0)
                 for col in range(map_width):
                     if args.habitat_map is None:
@@ -617,20 +617,36 @@ def unpack_predictions(predictions, map_width, targets, loc_list, simids, file_n
                         rmse_0 += (trueval[row,col,0]-prediction[row,col,0])**2
                         rmse_1 += (trueval[row,col,1]-prediction[row,col,1])**2
                         relevant_pixels += 1
+                        trues_0.append(trueval[row,col,0])
+                        preds_0.append(prediction[row,col,0])
+                        trues_1.append(trueval[row,col,1])
+                        preds_1.append(prediction[row,col,1])
                     elif habitat_map[row,col] == 1:
                         mrae_0 += abs(trueval[row,col,0]-prediction[row,col,0])/trueval[row,col,0]
                         mrae_1 += abs(trueval[row,col,1]-prediction[row,col,1])/trueval[row,col,1]
                         rmse_0 += (trueval[row,col,0]-prediction[row,col,0])**2
                         rmse_1 += (trueval[row,col,1]-prediction[row,col,1])**2
                         relevant_pixels += 1
+                        trues_0.append(trueval[row,col,0])
+                        preds_0.append(prediction[row,col,0])
+                        trues_1.append(trueval[row,col,1])
+                        preds_1.append(prediction[row,col,1])
 
             # (unindent)
             mrae_0 = np.sum(mrae_0) / relevant_pixels
             mrae_1 = np.sum(mrae_1) / relevant_pixels
             rmse_0 = np.sqrt(np.sum(rmse_0) / relevant_pixels)
             rmse_1 = np.sqrt(np.sum(rmse_1) / relevant_pixels)
+            corr_0 = np.corrcoef(trues_0,preds_0)[0,1]**2
+            corr_1 = np.corrcoef(trues_1,preds_1)[0,1]**2
             with open(args.out + "/Test_" + str(args.seed) + "/mapNN_" + str(simid) + "_error.txt", "a") as out_f:
-                out_f.write(str(mrae_0) + "\t" + str(mrae_1) + "\t" + str(rmse_0) + "\t" + str(rmse_1) + "\n")
+                out_f.write(str(mrae_0) + "\t" +
+                            str(mrae_1) + "\t" +
+                            str(rmse_0) + "\t" +
+                            str(rmse_1) + "\t" +
+                            str(corr_0) + "\t" +
+                            str(corr_1) + "\n"
+                            )
 
             # prepare min and max values for plotting
             # (inside loop, since it sometimes get's min/max from the true map, e.g. when counting realized density)
