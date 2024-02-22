@@ -1,0 +1,154 @@
+initialize() {
+    if (!exists("SEED")) defineConstant("SEED", 123);
+    setSeed(SEED);
+    initializeSLiMModelType("nonWF");
+    initializeSLiMOptions(dimensionality="xy");
+    initializeTreeSeq(checkCoalescence=T);
+
+    map_file = readCSV(MAP_FILE_0, colNames=F);
+    map_file = map_file.asMatrix();
+    map_file = map_file/sqrt(3/2); // convert sigma to sigma_f
+    defineConstant("SD_vals", map_file);
+    map_file = readCSV(MAP_FILE_1, colNames=F);
+    map_file = map_file.asMatrix();
+    defineConstant("K_vals", map_file);
+
+    defineConstant("maxgens", 1000);
+    defineConstant("gens_b4_record", 100);     	
+    if (!exists("OUTNAME")) defineConstant("OUTNAME", "/Users/chris/TempWorkSpace/temp1"); 	
+    defineConstant("L", 4);    // mean lifetime at stationarity
+    defineConstant("FECUN", 1/L); // mean fecundity
+    defineConstant("W", 7109.537608030495);  // width and height of the simulated area
+
+    // read in genetic map
+    map = readCSV("/home/chriscs/Software/disperseNN3/Wolves/genetic_map.txt", c("ends", "rates"), sep="\t");
+    ends = map.getValue("ends");
+    ends = ends-1; // 0-indexing
+    rates = map.getValue("rates");
+
+    initializeMutationType("m1", 0.5, "g", 0.0, 2);
+    initializeGenomicElementType("g1", m1, 1.0);
+    initializeGenomicElement(g1, 0, max(ends));
+    initializeMutationRate(0);
+    initializeRecombinationRate(rates, ends);
+
+    // spatial competition
+    initializeInteractionType(1, "xy", reciprocal=T, maxDistance=max(SD_vals) * 3);
+
+    // mate choice
+    initializeInteractionType(2, "xy", reciprocal=T, maxDistance=max(SD_vals) * 3);
+    
+}
+
+reproduction() {
+    // grab dists and strengths
+    dists = i2.interactionDistance(individual);
+    strengths = i2.strength(individual);
+
+    // get SIG from map for current individual
+    location = individual.spatialPosition;
+    SIG = p1.spatialMapValue("sigma", location);
+
+    // filter dists, indivs by ones within 3*sigma(_m)
+    neighbors = which(dists<(SIG*3));
+    if (length(neighbors) > 0) {
+        dists = dists[neighbors];
+        inds = p1.individuals[neighbors];
+
+        // apply gaussian
+        fmax=1.0/(2*PI*SIG^2);
+        strengths = fmax*exp(-dists^2/(2*SIG^2));
+
+        // sample
+        mate = sample(inds, 1, weights=strengths);
+        location = individual.spatialPosition;
+        SD = p1.spatialMapValue("sigma", location);
+	 
+    	if (mate.size()) {
+            nOff = rpois(1, FECUN);
+            for (i in seqLen(nOff)) {                    		
+                pos = location + rnorm(2, 0, SD);
+                if (p1.pointInBounds(pos)){
+                    if (p1.spatialMapValue("K", pos) > 1e-10) {  // absorbing boundary for wolf habitat
+                        offspring = subpop.addCrossed(individual, mate);
+                        offspring.setSpatialPosition(pos);
+                    }
+                }
+            }
+        }
+    return;
+    }
+}
+
+1 early() {
+    sim.addSubpop("p1", asInteger(mean(K_vals) * W * W)); // initialize with mean K
+    // p1.individuals.tag = 0; // "tag" property (int) counts the number of offspring
+    // p1.individuals.tagF = 0.0; // "tagF" (float) tracks mean distance to parents
+    p1.setSpatialBounds(c(0, 0, W,W));  
+    print(c("sigma_f range",range(SD_vals)));
+    print(c("K range",range(K_vals)));
+    p1.defineSpatialMap("sigma", "xy", SD_vals, interpolate=T);
+    p1.defineSpatialMap("K", "xy", K_vals, interpolate=T);
+
+    for (ind in p1.individuals) {
+        K = 0; 
+        while (K < 1e-10) { // important for wolf habitat map
+            proposed = p1.pointUniform();	
+            K = p1.spatialMapValue("K", proposed);       
+                        }
+        ind.setSpatialPosition(proposed);
+    }
+    i1.evaluate(sim.subpopulations);
+}
+
+early() {
+    i1.evaluate(p1);
+    individuals = p1.individuals;
+    
+    // loop over inds, calculate fitness for each
+    for (individual in individuals) {
+        // grab dists
+        dists = i1.interactionDistance(individual);
+
+        // get SIG from map for current individual
+        location = individual.spatialPosition;
+        SIG = p1.spatialMapValue("sigma", location);
+
+        // filter dists, indivs by ones within 3*sigma(_c)
+        neighbors = which(dists<(SIG*3));
+        dists = dists[neighbors];
+        inds = individuals[neighbors];
+
+        // apply gaussian
+        fmax=1.0/(2*PI*SIG^2);
+        strengths = fmax*exp(-dists^2/(2*SIG^2));
+
+        // total of neighbor strengths
+        competition = sum(strengths);
+        K = p1.spatialMapValue("K", location);
+        RHO = FECUN/((1+FECUN) * K);
+        individual.fitnessScaling = pmin(0.95, 1/(1 + RHO * competition));
+    }
+}
+
+1:999999999 late() {
+    i2.evaluate(p1);
+    print(c("Finished generation", sim.cycle, "; N=", p1.individualCount));
+
+    // check if surviving
+    if (p1.individualCount == 0){
+        catn("extinct.");
+        sim.simulationFinished();
+    }
+        
+    // write output
+    if (sim.cycle == maxgens) {
+       writeFile(paste0(OUTNAME, "_", SEED, "_N.txt"), asString(p1.individualCount));
+       sim.treeSeqOutput(paste(c(OUTNAME, "_", SEED,".trees"), sep=""));
+       catn("Done.");
+       sim.simulationFinished();
+    }
+}
+
+
+

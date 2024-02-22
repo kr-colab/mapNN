@@ -1,0 +1,178 @@
+initialize() {
+    if (!exists("SEED")) defineConstant("SEED", 123);
+    setSeed(SEED);
+    initializeSLiMModelType("nonWF");
+    initializeSLiMOptions(dimensionality="xy");
+    initializeTreeSeq(checkCoalescence=T);
+
+    map_file = readCSV(MAP_FILE_0, colNames=F);
+    map_file = map_file.asMatrix();
+    map_file = sqrt(map_file^2 + 0.5*(1^2)); // convert sigma to sigma_f
+    defineConstant("SD_vals", map_file);
+    map_file = readCSV(MAP_FILE_1, colNames=F);
+    map_file = map_file.asMatrix();
+    defineConstant("K_vals", map_file);
+
+    if (!exists("maxgens")) defineConstant("maxgens", 1000);
+    if (!exists("gens_b4_record")) defineConstant("gens_b4_record", 100);     	
+    if (!exists("OUTNAME")) defineConstant("OUTNAME", "//home/chriscs/temp1"); 	
+    defineConstant("L", 4);    // mean lifetime at stationarity
+    defineConstant("G", 1e8);  // genome length
+    defineConstant("FECUN", 1/L); // mean fecundity
+    if (!exists("W")) defineConstant("W", 50);  // width and height of the simulated area
+    if (!exists("SM")) defineConstant("SM", 1);
+    if (!exists("SI")) defineConstant("SI", 1);
+
+    initializeMutationType("m1", 0.5, "g", 0.0, 2);
+    initializeGenomicElementType("g1", m1, 1.0);
+    initializeGenomicElement(g1, 0, G-1);
+    initializeMutationRate(0);
+    initializeRecombinationRate(1e-8);  
+
+    // spatial competition
+    initializeInteractionType(1, "xy", reciprocal=T, maxDistance=SI * 3);
+    i1.setInteractionFunction("n", 1.0/(2*PI*SI^2), SI);
+    
+    // mate choice
+    initializeInteractionType(2, "xy", reciprocal=T, maxDistance=SM * 3);
+    i2.setInteractionFunction("n", 1.0/(2*PI*SM^2), SM);
+    
+    // initialize vars for tracking density
+    if (!exists("GRID_COARSENESS")) defineConstant("GRID_COARSENESS", W);
+    defineConstant("De", matrix(rep(0, GRID_COARSENESS*GRID_COARSENESS), GRID_COARSENESS, GRID_COARSENESS));
+    defineConstant("sigmas", matrix(rep(0.0, GRID_COARSENESS*GRID_COARSENESS), GRID_COARSENESS, GRID_COARSENESS));
+    defineConstant("offspring_counts", matrix(rep(0, GRID_COARSENESS*GRID_COARSENESS), GRID_COARSENESS, GRID_COARSENESS));
+}
+
+
+reproduction() {
+        mate = i2.drawByStrength(individual, 1);
+    	location = individual.spatialPosition; 
+    	SD = p1.spatialMapValue("sigma", location); 
+	 
+    	if (mate.size()) {
+            nOff = rpois(1, FECUN);
+            for (i in seqLen(nOff)) {                    		
+                pos = location + rnorm(2, 0, SD);
+                if (p1.pointInBounds(pos)){
+                    //if (p1.spatialMapValue("K", pos) > 1e-10) { // absorbing boundary for wolf habitat
+                        offspring = subpop.addCrossed(individual, mate);
+                        offspring.setSpatialPosition(pos);
+
+                        // tracking offpring
+                        individual.tag = individual.tag + 1; // adding new offspring for the mother
+                        mate.tag = mate.tag + 1; // adding offspring for the father
+                        offspring.tag = 0; // initialize tag for offspring
+                        x0 = pos[0];
+                        y0 = pos[1];
+                        x1 = individual.spatialPosition[0];
+                        y1 = individual.spatialPosition[1];
+                        x2 = mate.spatialPosition[0];
+                        y2 = mate.spatialPosition[1];
+                        mom_dist_x = (x0-x1)^2; // squared distance along an axis
+                        mom_dist_y = (y0-y1)^2;
+                        dad_dist_x = (x0-x2)^2;
+                        dad_dist_y = (y0-y2)^2;
+                        mean_dist = (mom_dist_x + dad_dist_x + mom_dist_y + dad_dist_y)/4; // mean squared distance to parents
+                        offspring.tagF = mean_dist;
+                    //}
+                }
+            }
+        }
+    return;
+}
+
+1 early() {
+    sim.addSubpop("p1", asInteger(mean(K_vals) * W * W)); // initialize with mean K
+    p1.individuals.tag = 0; // "tag" property (int) counts the number of offspring
+    p1.individuals.tagF = 0.0; // "tagF" (float) tracks mean distance to parents
+    p1.setSpatialBounds(c(0, 0, W,W));  
+    print(c("sigma range",range(SD_vals)));
+    print(c("K range",range(K_vals)));
+    p1.defineSpatialMap("sigma", "xy", SD_vals, interpolate=T);
+    p1.defineSpatialMap("K", "xy", K_vals, interpolate=T);
+
+
+    for (ind in p1.individuals) {
+        K = 0; 
+        while (K < 1e-10) { // important for wolf habitat map
+            proposed = p1.pointUniform();	
+            K = p1.spatialMapValue("K", proposed);       
+                        }
+        ind.setSpatialPosition(proposed);
+    }
+    i1.evaluate(sim.subpopulations);
+}
+
+early() {
+    i1.evaluate(p1);
+    inds = p1.individuals;
+    competition = i1.localPopulationDensity(inds); // new
+    locations = inds.spatialPosition; //[ rep(c(T,T), inds.size()) ];
+    K = p1.spatialMapValue("K", locations);
+    RHO = FECUN/((1+FECUN) * K); // constant in spatial competition function
+    inds.fitnessScaling = 1/(1 + RHO * competition);
+
+    // track density
+    locs = asInteger(floor((inds.spatialPosition/W) * GRID_COARSENESS));  // finds pixel for each individual location
+    if (sim.cycle > gens_b4_record) {	
+        for (ind in seqLen(length(inds))) {
+	    i = locs[ind*2];
+	    j = locs[ind*2+1];
+	    j = GRID_COARSENESS-j-1;  // flip to convert between slim and np.array. -1 for zero indexing
+	    De[i,j] = De[i,j] + 1;
+        }
+    }
+}
+
+// death
+survival() {
+    if (!surviving) { // record data for dead individuals      
+        if (sim.cycle > gens_b4_record) {
+	    weighted_dist = individual.tagF*individual.tag;
+    	    loc = asInteger(floor((individual.spatialPosition/W) * GRID_COARSENESS));
+            i = loc[0];
+            j = loc[1];
+            j = GRID_COARSENESS-j-1;  // flip to convert between slim and np.array. -1 for zero indexing
+            sigmas[i,j] = sigmas[i,j] + weighted_dist;  // summing sigmas, to average later
+	    offspring_counts[i,j] = offspring_counts[i,j] + individual.tag;  // counting offspring for denominator
+        }
+    }
+    return NULL;
+}
+
+1:999999999 late() {
+    i2.evaluate(p1);
+    print(c("Finished generation", sim.cycle, "; N=", p1.individualCount));
+    
+    // check if surviving
+    if (p1.individualCount == 0){
+        catn("extinct.");
+        sim.simulationFinished();
+    }
+        
+    // write output
+    if (sim.cycle == maxgens) {
+       // mean density over all gens
+       De_means = De / asFloat(maxgens-gens_b4_record);
+
+       // mean sigma over all dispersions
+       for (i in seqLen(GRID_COARSENESS)){
+       	   for (j in seqLen(GRID_COARSENESS)){
+               if (offspring_counts[i,j] > 0){  // avoiding division by zero
+               	  sigmas[i,j] = sqrt(sigmas[i,j] / offspring_counts[i,j]);
+	       }
+	   }
+       }
+
+       // write
+       writeFile(paste0(OUTNAME, "_", SEED, "_tracked.txt"), paste(De_means, sep="\t"), append=F);
+       writeFile(paste0(OUTNAME, "_", SEED, "_tracked.txt"), paste(sigmas, sep="\t"), append=T);
+       sim.treeSeqOutput(paste(c(OUTNAME, "_", SEED,".trees"), sep=""));
+       catn("Done.");
+       sim.simulationFinished();
+    }
+}
+
+
+
