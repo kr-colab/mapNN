@@ -1,5 +1,47 @@
 import numpy as np
 import sys, os
+import tskit, msprime
+
+
+# recapitation
+def recap(fp, op, seed=123):
+
+    # load
+    ts = tskit.load(fp)
+    alive_inds = []
+    for i in ts.individuals():
+        alive_inds.append(i.id)
+    # (unindent)
+    Ne = len(alive_inds)
+
+    # simplify to get rid of extraneous populations
+    ts = ts.simplify(keep_input_roots=True) 
+
+    # recap
+    np.random.seed(seed)
+    pop_id = None
+    for p in ts.populations():
+        if p.metadata != None:
+            slimid = p.metadata['slim_id']
+            if slimid == 1: # CHANGE: either 0 or 1, depending on which of your slim recipes you used
+                pop_id = int(p.id)
+    if pop_id == None:
+        print("need to find the correct population ID",flush=True)
+        exit()
+    demography = msprime.Demography.from_tree_sequence(ts)
+    demography[pop_id].initial_size = Ne
+    ts = msprime.sim_ancestry(
+            initial_state=ts,
+            demography=demography,
+            recombination_rate=1e-8,
+            random_seed=seed,
+    )
+
+    # dump
+    ts.dump(op)
+    
+    return
+
 
 # convert vcf to genotype array
 # filters:

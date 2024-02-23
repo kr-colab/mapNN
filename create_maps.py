@@ -220,7 +220,7 @@ def make_png(s_mat, k_mat):
     out = out.astype("uint8")
     im = Image.fromarray(out)
 
-    im.save(args.out + ".png")
+    im.save(args.out + "_" + str(args.seed) + ".png")
 
     return
 
@@ -255,9 +255,9 @@ else:
 
 # write
 mat = np.concatenate([s_mat,k_mat], axis=2)
-np.save(args.out, mat)
-np.savetxt(args.out+"_disp.csv", mat[:,:,0], delimiter=",", fmt='%f')
-np.savetxt(args.out+"_dens.csv", mat[:,:,1], delimiter=",", fmt='%f')
+np.save(args.out+"_"+str(args.seed), mat)
+np.savetxt(args.out+"_"+str(args.seed)+"_disp.csv", mat[:,:,0], delimiter=",", fmt='%f')
+np.savetxt(args.out+"_"+str(args.seed)+"_dens.csv", mat[:,:,1], delimiter=",", fmt='%f')
 
 # png
 if args.png:
