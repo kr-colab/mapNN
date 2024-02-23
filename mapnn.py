@@ -147,7 +147,7 @@ parser.add_argument("--pairs_encode", help="number of pairs (<= pairs_encode) to
 parser.add_argument("--habitat_map", help="path to png file with habitat shaded—for cropping.", default=None)
 parser.add_argument("--habitat_border", help="path to png file with outline of habitat—only for final visualization.", default=None)
 parser.add_argument("--slim_width", help="range of locs from simulation, if different than target maps", default=None, type=float)
-parser.add_argument("--filts1", help="num filters convolvulator", type=int, default = 126)
+parser.add_argument("--filts1", help="num filters convolvulator", type=int, default = 128)
 parser.add_argument("--filts2", help="num filters continuous filter conv", type=int, default = 64)
 parser.add_argument("--vcf",default=False,action="store_true",help="output vcf and other files for methods comparison pipeline")
 parser.add_argument("--ranges",default=None,type=float,help="for plotting: --ranges <min_sigma> <max_sigma> <min_k> <max_k>", nargs=4)
@@ -185,11 +185,6 @@ def load_network(map_width,habitat_map):
     num_conv_iterations = int(np.floor(np.log10(args.num_snps))-1) + 1
     if num_conv_iterations < 0:
         num_conv_iterations = 0
-
-    ### *** wolf hack for 10627 snps
-    num_conv_iterations = 3
-    print("\n\n\n\n\n\t\tCURRENTLY DOING A CUSTOM 3 CONV ITERATIONS, PROBABLY CHANGE THIS\n\n\n\n\n")
-    ###
 
     # organize pairs of individuals
     combinations = list(itertools.combinations(range(args.n), 2))
