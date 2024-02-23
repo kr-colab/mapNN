@@ -1,9 +1,9 @@
 
-# creates a 2-channel map (.npy) with random spatial segments
+# creates a 2-channel map (.csv) with random spatial segments
 
 # e.g., python create_maps.py --help  # help message
-# e.g., python create_maps.py --out temp1.npy --seed 123 --w 50 --min_c1 0.2 --max_c1 3 --min_c2 4 --max_c2 40
-# e.g., python create_maps.py --out temp1.npy --seed 123 --w 500 --png  # output optional PNG 
+# e.g., python create_maps.py --out temp1.csv --seed 123 --w 50 --min_c1 0.2 --max_c1 3 --min_c2 4 --max_c2 40
+# e.g., python create_maps.py --out temp1.csv --seed 123 --w 500 --png  # output optional PNG 
 
 
 import argparse
@@ -15,7 +15,7 @@ from scipy.stats import loguniform
 
 
 parser=argparse.ArgumentParser()
-parser.add_argument("--out",help="output path (with or without .npy)", required=True)
+parser.add_argument("--out",help="output path (without .csv)", required=True)
 parser.add_argument("--w",help="width of square map", type=int, default=50)
 parser.add_argument("--seed",help="random number seed", type=int)
 parser.add_argument("--min_c1",help="min for channel-1", type=float, default=0.2)
@@ -23,7 +23,7 @@ parser.add_argument("--max_c1",help="max for channel-1", type=float, default=3)
 parser.add_argument("--min_c2",help="min for channel-2", type=float, default=4)
 parser.add_argument("--max_c2",help="max for channel-2", type=float, default=40)
 parser.add_argument("--max_degree",help="maximum degree for polynomial function (default=3)", type=int, default=3)
-parser.add_argument("--png",help="output optional red & blue PNG for visualization, alongside the primary output (.npy)", action="store_true")
+parser.add_argument("--png",help="output optional red & blue PNG for visualization, alongside the primary output (.csv)", action="store_true")
 args=parser.parse_args()
 
 def random_points():
@@ -191,7 +191,7 @@ def make_mat(segment_map, values, ys):
 
 
 def flip(mat):
-    newmat = np.array(newmat)
+    newmat = np.array(mat)
     if random.randint(0,1) == 0:
         newmat = np.flip(newmat, axis=0)
     if random.randint(0,1) == 0:
@@ -220,11 +220,7 @@ def make_png(s_mat, k_mat):
     out = out.astype("uint8")
     im = Image.fromarray(out)
 
-    if args.out[-4:] == ".npy":
-        outfile = args.out[:-4]
-    else:
-        outfile = str(args.out)
-    im.save(outfile + ".png")
+    im.save(args.out + ".png")
 
     return
 
@@ -260,9 +256,8 @@ else:
 # write
 mat = np.concatenate([s_mat,k_mat], axis=2)
 np.save(args.out, mat)
-pref = ".".join(args.out.split(".")[0:-1])
-np.savetxt(pref+"_disp.csv", mat[:,:,0], delimiter=",", fmt='%f')
-np.savetxt(pref+"_dens.csv", mat[:,:,1], delimiter=",", fmt='%f')
+np.savetxt(args.out+"_disp.csv", mat[:,:,0], delimiter=",", fmt='%f')
+np.savetxt(args.out+"_dens.csv", mat[:,:,1], delimiter=",", fmt='%f')
 
 # png
 if args.png:
