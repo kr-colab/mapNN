@@ -1,6 +1,5 @@
 # mapNN
 Neural network for estimating demographic maps from SNPs
-
 - [mapNN](#mapnn)
   - [How to cite](#how-to-cite)
   - [Install instructions](#install-instructions)
@@ -24,9 +23,9 @@ TODO
 
 
 
-## Install instuctions
+## Install instructions
 
-```
+```bash
 conda create -n mapnn python=3.9 --yes
 conda activate mapnn
 pip install --upgrade pip
@@ -174,6 +173,10 @@ slim \
 - `maxgens`: number of slim ticks before the end of simulation
 
 
+First install SLiM:
+```bash
+mamba install slim==4.0.1 -c conda-forge
+```
 
 example:
 
@@ -185,8 +188,8 @@ slim \
      -d SEED=123 \
      -d SI=1 \
      -d SM=1 \
-     -d maxgens=10000 \
-     benchmark.slim
+     -d maxgens=10 \
+     SLiM_recipes/benchmark.slim
 ```
 
 
@@ -293,7 +296,7 @@ python mapnn.py \
 usage:
 
 ```bash
-python ~/Software/mapNN/mapnn.py \
+python mapnn.py \
        --train \
        --out <str> \
        --seed <int> \
@@ -327,14 +330,14 @@ wget http://sesame.uoregon.edu/~chriscs/mapNN/Examples.zip
 unzip Examples.zip
 ```
 
-The purpose, here, is to demonstrate that the code runs, not to actually train a good model.
+The purpose, here, is to demonstrate that the code runs, not to actually train a "production level" model.
 For a real analysis, you will need thousands of training examples, and hours or days of training on a GPU.
 In our paper, we used a training set of 50,000.
 
 example:
 
 ```bash
-python ~/Software/mapNN/mapnn.py \
+python mapnn.py \
        --train \
        --out Examples/Train \
        --seed 1 \
@@ -361,7 +364,7 @@ python ~/Software/mapNN/mapnn.py \
 ### Prediction
 
 ```bash
-python ~/Software/mapNN/mapnn.py \
+python mapnn.py \
        --predict \
        --out <str> \
        --seed <int> \
@@ -371,6 +374,7 @@ python ~/Software/mapNN/mapnn.py \
        --pairs_encode <int> \
        --load_weights <str> \
        --batch_size <int> \
+       --ranges <float> <float> <float> <float> \
        --gpu_index <int, or "any">
 ```
 
@@ -378,11 +382,12 @@ Here there are a couple of new flags:
 
 - `predict`: tells `mapNN` to predict
 - `load_weights`: path to saved model weights from training
+- `ranges`: min and max for disersal prior range, and min and max for density prior range, space-separated (for plotting)
 
 example:
 
 ```bash
-python ~/Software/mapNN/mapnn.py \
+python mapnn.py \
        --predict \
        --out Examples/Test \
        --seed 1 \
@@ -392,6 +397,7 @@ python ~/Software/mapNN/mapnn.py \
        --pairs_encode 100 \
        --load_weights Examples/Train/mapNN_1_model.hdf5 \
        --batch_size 10 \
+       --ranges 0.73,3.08,4,40 \
        --gpu_index -1
 ```
 
@@ -403,7 +409,91 @@ python ~/Software/mapNN/mapnn.py \
 
 ### Empirical analysis
 
+For an empirical analysis, you will likely want to do some new things.
+First, ideally we provide a PNG map of the habitat to `mapNN` and SLiM, where habitable areas are black, and unlivable pixels are white.
+Second, we will provide the empirical sampling locations to `mapNN` during preprocessing, and sample individuals near the real localities.
+The below commands can be used as a starting point for an empirical workflow; although we don't do a full-blown analysis, here.
 
+Cookie cutter the training maps to reflect the empirical habitat
+
+```python
+from PIL import Image
+from numpy import asarray
+import skimage.measure
+import numpy as np
+
+# inputs                                                                                                                                            
+target = np.load("tempout/mapnn_123.npy")
+w = target.shape[0]
+data=Image.open("Examples/Empirical/wolf_distribution.png")
+temp=asarray(data)
+data = np.copy(temp)
+outline = data.astype(float)
+
+# compress the mask                                                                                                                                 
+rat = int(round(outline.shape[0]/w))
+outline = skimage.measure.block_reduce(outline, block_size=(rat,rat,1), func=np.mean)
+
+# apply the cookie cutter:                                                                                                                          
+for i in range(w):
+    for j in range(w):
+        mean_val = np.mean(outline[i,j,0:3])
+        if mean_val > (255/2.0): # arbitrary cutoff for grey pixels                                                                                 
+            target[i,j,0] = 0.
+            target[i,j,1] = 0.
+
+# write
+np.save("Examples/Empirical/cookie_123.npy", target)
+np.savetxt("Examples/Empirical/cookie_123_disp.csv", target[:,:,0], delimiter=",", fmt='%f')
+np.savetxt("Examples/Empirical/cookie_123_dens.csv", target[:,:,1], delimiter=",", fmt='%f')
+```
+
+
+
+
+Simulation
+
+```bash
+slim -d "MAP_FILE_0='Examples/Empirical/cookie_123_disp.csv'" -d "MAP_FILE_1='Examples/Empirical/cookie_123_dens.csv'" -d "OUTNAME='Examples/Empirical/sim'" -d SEED=2 SLiM_recipes/wolves.slim
+```
+
+
+Preprocessing
+
+```bash
+python mapnn.py --preprocess --out Examples/Empirical/ --simid 1 --seed 1 --num_snps 10627 --n 94 --tree_list Examples/Empirical/tree_list.txt --target_list Examples/Empirical/map_list.txt --map_width 50 --slim_width 7109.537608030495 --habitat_map Examples/Empirical/wolf_distribution.png --empirical Examples/Empirical/wolves_n94 --chroms 38
+```
+
+
+Training
+
+```bash
+python mapnn.py --train --out Examples/Empirical/ --seed 1 --n 94 --num_snps 10627 --validation_split 0.2 --batch_size 10 --max_epochs 1000 --pairs 650 --pairs_encode 100 --habitat_map Examples/Empirical/wolf_distribution.png
+```
+
+
+
+Prediction
+
+```bash
+python mapnn.py --predict --out Examples/Empirical/ --seed 1 --n 94 --num_snps 10627 --batch_size 10 --pairs 650 --pairs_encode 100 --habitat_map Examples/Empirical/wolf_distribution.png --empirical Examples/Empirical/wolves_n94 --habitat_border Examples/Empirical/wolf_distribution_outline.png --load_weights Empirical/Examples/mapNN_1_model.hdf5 --num_reps 10
+```
+
+
+
+Predict on bootstrap sims
+
+```bash
+python mapnn.py --predict --out Examples/Bootstrap_sims/ --seed 1 --n 94 --num_snps 10627 --batch_size 10 --pairs 650 --pairs_encode 100 --habitat_map Examples/Empirical/wolf_distribution.png --habitat_border Examples/Empirical/wolf_distribution_outline.png --load_weights Empirical/Examples/mapNN_1_model.hdf5
+```
+
+
+
+Confidence interval command
+
+```bash
+python mapnn.py --bootstrap Examples/Empirical/Test_1/mapNN_empirical_pred.npy --out Examples/Bootstrap_sims/ --seed 1 --habitat_map Examples/Empirical/wolf_distribution.png --habitat_border Examples/Empirical/wolf_distribution_outline.png
+```
 
 
 
