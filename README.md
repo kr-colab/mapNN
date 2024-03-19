@@ -15,8 +15,11 @@ Neural network for estimating demographic maps from SNPs
 
 
 ## How to Cite
-TODO
+Estimation of spatial demographic maps from polymorphism data using a neural network
 
+Chris C R Smith, Gilia C Patterson, Peter L. Ralph, Andrew D. Kern
+
+bioRxiv 2024.03.15.585300; doi: https://doi.org/10.1101/2024.03.15.585300
 
 
 
