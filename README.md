@@ -2,9 +2,9 @@
 Neural network for estimating demographic maps from SNPs.
 - [mapNN](#mapnn)
   - [How to cite](#how-to-cite)
+  - [What you will need for an empirical analysis](#what-you-will-need)
   - [Install instructions](#install-instructions)
   - [Usage](#usage)
-    - [What you will need for an empirical analysis](#what-you-will-need-for-an-empirical analysis)
     - [Creating training maps](#creating-training-maps)
     - [Simulation](#simulation)
     - [Preprocessing](#preprocessing)
@@ -15,12 +15,29 @@ Neural network for estimating demographic maps from SNPs.
 
 
 
+
 ## How to Cite
 Estimation of spatial demographic maps from polymorphism data using a neural network
 
 Chris C R Smith, Gilia C Patterson, Peter L. Ralph, Andrew D. Kern
 
 bioRxiv 2024.03.15.585300; doi: https://doi.org/10.1101/2024.03.15.585300
+
+
+
+
+
+
+
+
+## What you will need for an empirical analysis
+Before getting too far, make sure you have the following things:
+
+- .vcf formatted SNPs.
+- table of latitude and longitude coordinates for each sample.
+- computing cluster for running simulations in parallel.
+- GPU, probably with >10Gb RAM, for training.
+
 
 
 
@@ -74,8 +91,6 @@ And simultaneously run `nvidia-smi` or `gpustat` to make sure the GPU is firing.
 
 
 
-
-
 ## Usage
 
 The `mapNN` program is used for several steps in an analysis workflow:
@@ -94,15 +109,6 @@ mkdir tempout
 
 
 
-
-### What you will need for an empirical analysis
-
-Before getting too far, make sure you have the following things:
-
-- .vcf formatted SNPs for empirical data (if applicable)
-- table of latitude and longitude coordinates for each empirical sample (if applicable), with two columns
-- computing cluster for running simulations in parallel
-- GPU, probably with >10Gb RAM, for training
 
 
 
