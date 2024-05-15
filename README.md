@@ -1,9 +1,10 @@
 # mapNN
-Neural network for estimating demographic maps from SNPs
+Neural network for estimating demographic maps from SNPs.
 - [mapNN](#mapnn)
   - [How to cite](#how-to-cite)
   - [Install instructions](#install-instructions)
   - [Usage](#usage)
+    - [What you will need for an empirical analysis](#what-you-will-need-for-an-empirical analysis)
     - [Creating training maps](#creating-training-maps)
     - [Simulation](#simulation)
     - [Preprocessing](#preprocessing)
@@ -92,6 +93,16 @@ mkdir tempout
 
 
 
+
+
+### What you will need for an empirical analysis
+
+Before getting too far, make sure you have the following things:
+
+- .vcf formatted SNPs for empirical data (if applicable)
+- table of latitude and longitude coordinates for each empirical sample (if applicable), with two columns
+- computing cluster for running simulations in parallel
+- GPU, probably with >10Gb RAM, for training
 
 
 
