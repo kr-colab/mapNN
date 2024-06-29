@@ -160,6 +160,9 @@ parser.add_argument(
     help="plot training history? default: False",
 )
 parser.add_argument("--bootstrap",default=None,help="path to point estimate map for bootstrapping")
+parser.add_argument(
+    "--divergent_heatmap", action="store_true", default=False, help="blue/red heatmap"
+)
 
 args = parser.parse_args()
 check_params(args)
@@ -711,12 +714,18 @@ def unpack_predictions(predictions, map_width, targets, loc_list, simids, file_n
             locs = np.floor(locs).astype(int)  # round to nearest pixel, the circle function wants int
 
             # heatmaps
-            cb_params = [min_sigma, max_sigma, "\u03C3"]
-            disp_true = heatmap(trueval[:,:,0], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)
-            disp_mapnn = heatmap(prediction[:,:,0], plot_width, tmpfile, None, habitat_map_plot, args.habitat_border, locs)
-            cb_params = [min_k,max_k, "D"]
-            dens_true = heatmap(trueval[:,:,1], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)
-            dens_mapnn = heatmap(prediction[:,:,1], plot_width, tmpfile, None, habitat_map_plot, args.habitat_border, locs)
+            cb_params = [min_sigma, max_sigma, "\u03C3", "DejaVuSans-Oblique.ttf"]
+            color_scheme = "Blues"
+            if args.divergent_heatmap is True:
+                color_scheme = "coolwarm_r"            
+            disp_true = heatmap(trueval[:,:,0], plot_width, tmpfile, color_scheme, cb_params, habitat_map_plot, args.habitat_border, locs)
+            disp_mapnn = heatmap(prediction[:,:,0], plot_width, tmpfile, color_scheme, None, habitat_map_plot, args.habitat_border, locs)
+            cb_params = [min_k,max_k, "D", "DejaVuSans-Oblique.ttf"]
+            color_scheme = "Reds"
+            if args.divergent_heatmap is True:
+                color_scheme = "coolwarm_r"            
+            dens_true = heatmap(trueval[:,:,1], plot_width, tmpfile, color_scheme, cb_params, habitat_map_plot, args.habitat_border, locs)
+            dens_mapnn = heatmap(prediction[:,:,1], plot_width, tmpfile, color_scheme, None, habitat_map_plot, args.habitat_border, locs)
             all_together_0  = concat_h(disp_true, disp_mapnn)
             all_together_1  = concat_h(dens_true, dens_mapnn)
             all_together  = concat_v(all_together_0, all_together_1)
@@ -813,12 +822,18 @@ def unpack_predictions(predictions, map_width, targets, loc_list, simids, file_n
             heat_map = heat_map.astype('uint8')
             
             # dispersal heatmap
-            cb_params = [min_sigma, max_sigma, "\u03C3"]
-            disp_map = heatmap(heat_map[:,:,0], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)
+            cb_params = [min_sigma, max_sigma, "\u03C3", "DejaVuSans-Oblique.ttf"]
+            color_scheme = "Blues"
+            if args.divergent_heatmap is True:
+                color_scheme = "coolwarm_r"
+            disp_map = heatmap(heat_map[:,:,0], plot_width, tmpfile, color_scheme, cb_params, habitat_map_plot, args.habitat_border, locs)
 
             # density heatmap
-            cb_params = [min_k,max_k, "D"]
-            dens_map = heatmap(heat_map[:,:,1], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border, locs)
+            cb_params = [min_k,max_k, "D", "DejaVuSans-Oblique.ttf"]
+            color_scheme = "Reds"
+            if args.divergent_heatmap is True:
+                color_scheme = "coolwarm_r"            
+            dens_map = heatmap(heat_map[:,:,1], plot_width, tmpfile, color_scheme, cb_params, habitat_map_plot, args.habitat_border, locs)
             
             # merge pngs
             all_together  = concat_h(disp_map, dens_map)
@@ -1194,14 +1209,26 @@ def ci():
     interval_map = np.clip(interval_map, 0, 255)
     interval_map = interval_map.astype('uint8') # (II) int
 
+    # prep locs                                                                               
+    empirical_locs = read_list(args.empirical + ".locs", float)
+    empirical_locs = np.array(empirical_locs)
+    empirical_locs = empirical_locs.T
+    factor = plot_width / map_width  # rescale                                                
+    locs = np.array(empirical_locs)
+    locs *= factor
+    locs = np.floor(locs).astype(int)  # round to nearest pixel, the circle function wants int
+
     # dispersal CIs
     tmpfile =  args.out + "/Test_" + str(args.seed) + "/tmp_1.png"
-    cb_params = [min_sigma, max_sigma, "\u03C3"]
-    disp_cis = heatmap(interval_map[:,:,0], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border)
+    cb_params = [min_sigma, max_sigma, "Relative CI\nwidth for \u03C3", "DejaVuSans.ttf"]
+    color_scheme = "Greens"  # (repeated for density CIs)
+    if args.divergent_heatmap is True:
+        color_scheme = "coolwarm_r"
+    disp_cis = heatmap(interval_map[:,:,0], plot_width, tmpfile, color_scheme, cb_params, habitat_map_plot, args.habitat_border)
 
     # density CIs
-    cb_params = [min_k, max_k, "D"]
-    dens_cis = heatmap(interval_map[:,:,1], plot_width, tmpfile, cb_params, habitat_map_plot, args.habitat_border)
+    cb_params = [min_k, max_k, "Relative CI\nwidth for D", "DejaVuSans.ttf"]
+    dens_cis = heatmap(interval_map[:,:,1], plot_width, tmpfile, color_scheme, cb_params, habitat_map_plot, args.habitat_border)
     
     # combine
     all_together  = concat_h(disp_cis, dens_cis)

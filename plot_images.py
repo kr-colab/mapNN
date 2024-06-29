@@ -141,17 +141,18 @@ def maplot(demap, plot_width, habitat_border=None):
 
 
 # plot heat map
-def heatmap(demap, plot_width, tmpfile, cb_params=None, habitat_map_plot=None, habitat_border=None, locs=None):
+def heatmap(demap, plot_width, tmpfile, color_scheme, cb_params=None, habitat_map_plot=None, habitat_border=None, locs=None):
     
     # plot map
     img = Image.fromarray(demap)
-    img = img.convert('L')
     img = img.resize((plot_width,plot_width), resample=Image.BICUBIC) #resample=Image.BILINEAR)  #resample=Image.NEAREST)
     img.save(tmpfile)
     img = cv2.imread(tmpfile, cv2.IMREAD_GRAYSCALE)
-    colormap = plt.get_cmap('coolwarm_r')
-    img = (colormap(img) * 2**16).astype(np.uint16)[:,:,:3]
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+    colormap = plt.get_cmap(color_scheme)
+    img = colormap(img)
+    img = Image.fromarray((img[:, :, :3] * 255).astype(np.uint8))
+    img.save(tmpfile)
+    img = cv2.imread(tmpfile)
     if locs is not None:
         for l in range(locs.shape[1]):  # weird coordinates: 0,0 top left, first dim is x, second dim y
             img = cv2.circle(img, (locs[0,l],plot_width-locs[1,l]), radius=3, color=(0,0,0), thickness=1)
@@ -173,15 +174,17 @@ def heatmap(demap, plot_width, tmpfile, cb_params=None, habitat_map_plot=None, h
         norm = colors.LogNorm(cb_params[0],cb_params[1]) # log10 scale
         r = cb_params[1]-cb_params[0]
         ticks = [cb_params[0],cb_params[0]+(r/4),cb_params[0]+(r/2),cb_params[0]+(3*r/4),cb_params[1]]
-        colormap = plt.get_cmap('coolwarm_r') # _r for reverse
+        colormap = plt.get_cmap(color_scheme) # _r for reverse
         cb = mpl.colorbar.ColorbarBase(ax, cm.ScalarMappable(norm=norm, cmap=colormap))
         labels = cb.ax.minorticks_off()  # was key to getting rid of "default" ticks
         cb.set_ticks(ticks)
         if cb_params[0] >= 0.1 and cb_params[1] <= 100:
             cb.set_ticklabels(np.round(np.array(ticks), 1))
+            tick_space = 100
         else:
             cb.set_ticklabels([f'{x:.1e}' for x in ticks])  # scientific notation
-        cb.ax.tick_params(labelsize=25)
+            tick_space = 130
+        cb.ax.tick_params(labelsize=16)
 
         plt.savefig(tmpfile, bbox_inches='tight')
         plt.close()
@@ -189,14 +192,14 @@ def heatmap(demap, plot_width, tmpfile, cb_params=None, habitat_map_plot=None, h
         cb = Image.open(tmpfile)
         white_background = Image.new("RGB", (cb.size[0], 50), (255, 255, 255)) # adding some white space above bar
         cb  = concat_v(white_background, cb)
-        cb = cb.resize((75,520))
+        cb = cb.resize((tick_space,520))
         img = concat_bar(img, cb)
         os.remove(tmpfile)
 
-        # text label
-        font_path = os.path.join(cv2.__path__[0],'qt','fonts','DejaVuSans-Oblique.ttf')               
-        myfont = ImageFont.truetype(font_path, size=24)                                       
-        t = ImageDraw.Draw(img) 
-        t.text((540, 15), cb_params[2], fill=(0,0,0), font=myfont)
-
+        # text label                                                                    
+        font_path = os.path.join(cv2.__path__[0],'qt','fonts',cb_params[3])
+        myfont = ImageFont.truetype(font_path, size=24)
+        t = ImageDraw.Draw(img)
+        t.text((475, 0), cb_params[2], fill=(0,0,0), font=myfont)
+        
     return img
