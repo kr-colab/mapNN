@@ -170,15 +170,15 @@ def heatmap(demap, plot_width, tmpfile, color_scheme, cb_params=None, habitat_ma
     if cb_params is not None:
         fig = plt.figure()
         ax = fig.add_axes([0, 0.05, 0.06, 1]) # left, bottom, width, height     
-        #norm = colors.Normalize(cb_params[0],cb_params[1])
-        norm = colors.LogNorm(cb_params[0],cb_params[1]) # log10 scale
-        r = cb_params[1]-cb_params[0]
-        ticks = [cb_params[0],cb_params[0]+(r/4),cb_params[0]+(r/2),cb_params[0]+(3*r/4),cb_params[1]]
+        #norm = colors.Normalize(cb_params["min"],cb_params["max"])
+        norm = colors.LogNorm(cb_params["min"],cb_params["max"]) # log10 scale
+        r = cb_params["max"]-cb_params["min"]
+        ticks = [cb_params["min"],cb_params["min"]+(r/4),cb_params["min"]+(r/2),cb_params["min"]+(3*r/4),cb_params["max"]]
         colormap = plt.get_cmap(color_scheme) # _r for reverse
         cb = mpl.colorbar.ColorbarBase(ax, cm.ScalarMappable(norm=norm, cmap=colormap))
         labels = cb.ax.minorticks_off()  # was key to getting rid of "default" ticks
         cb.set_ticks(ticks)
-        if cb_params[0] >= 0.1 and cb_params[1] <= 100:
+        if cb_params["min"] >= 0.1 and cb_params["max"] <= 100:
             cb.set_ticklabels(np.round(np.array(ticks), 1))
             tick_space = 100
         else:
@@ -196,10 +196,10 @@ def heatmap(demap, plot_width, tmpfile, color_scheme, cb_params=None, habitat_ma
         img = concat_bar(img, cb)
         os.remove(tmpfile)
 
-        # text label                                                                    
-        font_path = os.path.join(cv2.__path__[0],'qt','fonts',cb_params[3])
-        myfont = ImageFont.truetype(font_path, size=24)
-        t = ImageDraw.Draw(img)
-        t.text((475, 0), cb_params[2], fill=(0,0,0), font=myfont)
-        
+        # text label
+        font_path = os.path.join(cv2.__path__[0],'qt','fonts',cb_params["font"])
+        myfont = ImageFont.truetype(font_path, size=24)                            
+        t = ImageDraw.Draw(img) 
+        t.text(cb_params["text_pos"], cb_params["text"], fill=(0,0,0), font=myfont)
+
     return img

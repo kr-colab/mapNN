@@ -714,13 +714,14 @@ def unpack_predictions(predictions, map_width, targets, loc_list, simids, file_n
             locs = np.floor(locs).astype(int)  # round to nearest pixel, the circle function wants int
 
             # heatmaps
-            cb_params = [min_sigma, max_sigma, "\u03C3", "DejaVuSans-Oblique.ttf"]
+            cb_params = {"min":min_sigma, "max":max_sigma, "text":"\u03C3", "font":"DejaVuSans-Oblique.ttf", "text_pos":(540, 25)}
             color_scheme = "Blues"
             if args.divergent_heatmap is True:
                 color_scheme = "coolwarm_r"            
             disp_true = heatmap(trueval[:,:,0], plot_width, tmpfile, color_scheme, cb_params, habitat_map_plot, args.habitat_border, locs)
             disp_mapnn = heatmap(prediction[:,:,0], plot_width, tmpfile, color_scheme, None, habitat_map_plot, args.habitat_border, locs)
-            cb_params = [min_k,max_k, "D", "DejaVuSans-Oblique.ttf"]
+            #
+            cb_params = {"min":min_k, "max":max_k, "text":"D", "font":"DejaVuSans-Oblique.ttf", "text_pos":(540, 25)}
             color_scheme = "Reds"
             if args.divergent_heatmap is True:
                 color_scheme = "coolwarm_r"            
@@ -774,7 +775,7 @@ def unpack_predictions(predictions, map_width, targets, loc_list, simids, file_n
             if maps[i] == "pred":
                 np.save(str(args.out) + "/Test_" + str(args.seed) + "/mapNN_empirical_pred.npy", out_map)
                 np.savetxt(str(args.out) + "/Test_" + str(args.seed) + "/mapNN_empirical_dispersal_pred.csv", out_map[:,:,0], delimiter=",", fmt='%f')
-                np.savetxt(str(args.out) + "/Test_" + str(args.seed) + "/mapNN_empirical_density_pred.csv", out_map[:,:,1], delimiter=",", fmt='%f')            
+                np.savetxt(str(args.out) + "/Test_" + str(args.seed) + "/mapNN_empirical_density_pred.csv", out_map[:,:,1], delimiter=",", fmt='%f')
 
             # find min and max values for plotting and empirical interpretation
             if args.ranges is None:
@@ -822,14 +823,14 @@ def unpack_predictions(predictions, map_width, targets, loc_list, simids, file_n
             heat_map = heat_map.astype('uint8')
             
             # dispersal heatmap
-            cb_params = [min_sigma, max_sigma, "\u03C3", "DejaVuSans-Oblique.ttf"]
+            cb_params = {"min":min_sigma, "max":max_sigma, "text":"\u03C3", "font":"DejaVuSans-Oblique.ttf", "text_pos":(540, 25)}
             color_scheme = "Blues"
             if args.divergent_heatmap is True:
                 color_scheme = "coolwarm_r"
             disp_map = heatmap(heat_map[:,:,0], plot_width, tmpfile, color_scheme, cb_params, habitat_map_plot, args.habitat_border, locs)
 
             # density heatmap
-            cb_params = [min_k,max_k, "D", "DejaVuSans-Oblique.ttf"]
+            cb_params = {"min":min_k, "max":max_k, "text":"D", "font":"DejaVuSans-Oblique.ttf", "text_pos":(540, 25)}
             color_scheme = "Reds"
             if args.divergent_heatmap is True:
                 color_scheme = "coolwarm_r"            
@@ -1220,14 +1221,14 @@ def ci():
 
     # dispersal CIs
     tmpfile =  args.out + "/Test_" + str(args.seed) + "/tmp_1.png"
-    cb_params = [min_sigma, max_sigma, "Relative CI\nwidth for \u03C3", "DejaVuSans.ttf"]
+    cb_params = {"min":min_sigma, "max":max_sigma, "text":"Relative CI\nwidth for \u03C3", "font":"DejaVuSans.ttf", "text_pos":(475, 0)}
     color_scheme = "Greens"  # (repeated for density CIs)
     if args.divergent_heatmap is True:
         color_scheme = "coolwarm_r"
     disp_cis = heatmap(interval_map[:,:,0], plot_width, tmpfile, color_scheme, cb_params, habitat_map_plot, args.habitat_border)
 
     # density CIs
-    cb_params = [min_k, max_k, "Relative CI\nwidth for D", "DejaVuSans.ttf"]
+    cb_params = {"min":min_k, "max":max_k, "text":"Relative CI\nwidth for D", "font":"DejaVuSans.ttf", "text_pos":(475, 0)}
     dens_cis = heatmap(interval_map[:,:,1], plot_width, tmpfile, color_scheme, cb_params, habitat_map_plot, args.habitat_border)
     
     # combine
