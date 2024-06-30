@@ -171,11 +171,19 @@ def heatmap(demap, plot_width, tmpfile, color_scheme, cb_params=None, habitat_ma
         fig = plt.figure()
         ax = fig.add_axes([0, 0.05, 0.06, 1]) # left, bottom, width, height     
         #norm = colors.Normalize(cb_params["min"],cb_params["max"])
-        norm = colors.LogNorm(cb_params["min"],cb_params["max"]) # log10 scale
-        r = float(cb_params["max"]-cb_params["min"])
-        ticks = [cb_params["min"],cb_params["min"]+(r/4),cb_params["min"]+(r/2),cb_params["min"]+(3*r/4),cb_params["max"]]
+        norm = colors.LogNorm(cb_params["min"],cb_params["max"]) # log scale
+        #r = float(cb_params["max"]-cb_params["min"])
+        r = np.log(cb_params["max"])-np.log(cb_params["min"])
         colormap = plt.get_cmap(color_scheme) # _r for reverse
         cb = mpl.colorbar.ColorbarBase(ax, cm.ScalarMappable(norm=norm, cmap=colormap))
+        #ticks = [cb_params["min"],cb_params["min"]+(r/4),cb_params["min"]+(r/2),cb_params["min"]+(3*r/4),cb_params["max"]]
+        ticks = [np.log(cb_params["min"]),
+                 np.log(cb_params["min"])+(r/4),
+                 np.log(cb_params["min"])+(r/2),
+                 np.log(cb_params["min"])+(3*r/4),
+                 np.log(cb_params["max"]),
+                 ]
+        ticks = np.exp(ticks)
         labels = cb.ax.minorticks_off()  # was key to getting rid of "default" ticks
         cb.set_ticks(ticks)
         if cb_params["min"] >= 0.1 and cb_params["max"] <= 100:
