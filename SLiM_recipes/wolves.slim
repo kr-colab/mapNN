@@ -15,13 +15,13 @@ initialize() {
 
     defineConstant("maxgens", 1000);
     defineConstant("gens_b4_record", 100);     	
-    if (!exists("OUTNAME")) defineConstant("OUTNAME", "/Users/chris/TempWorkSpace/temp1"); 	
+    if (!exists("OUTNAME")) defineConstant("OUTNAME", "tempout1"); 	
     defineConstant("L", 4);    // mean lifetime at stationarity
     defineConstant("FECUN", 1/L); // mean fecundity
     defineConstant("W", 7109.537608030495);  // width and height of the simulated area
 
     // read in genetic map
-    map = readCSV("/home/chriscs/Software/disperseNN3/Wolves/genetic_map.txt", c("ends", "rates"), sep="\t");
+    map = readCSV("SLiM_recipes/genetic_map_Campbell2016.txt", c("ends", "rates"), sep="\t");
     ends = map.getValue("ends");
     ends = ends-1; // 0-indexing
     rates = map.getValue("rates");
