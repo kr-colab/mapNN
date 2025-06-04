@@ -481,7 +481,7 @@ slim -d "MAP_FILE_0='Examples/Empirical/cookie_123_disp.csv'" -d "MAP_FILE_1='Ex
 Preprocessing
 
 ```bash
-python mapnn.py --preprocess --out Examples/Empirical/ --simid 1 --seed 1 --num_snps 10627 --n 94 --tree_list Examples/Empirical/tree_list.txt --target_list Examples/Empirical/map_list.txt --map_width 50 --slim_width 7109.537608030495 --habitat_map Examples/Empirical/wolf_distribution.png --empirical Examples/Empirical/wolves_n94 --chroms 38
+python mapnn.py --preprocess --out Examples/Empirical/ --simid 1 --seed 1 --num_snps 10627 --n 94 --tree_list Examples/Empirical/tree_list.txt --target_list Examples/Empirical/map_list.txt --map_width 50 --slim_width 7109.537608030495 --habitat_map Examples/Empirical/wolf_distribution.png --empirical Examples/Empirical/wolves_n94
 ```
 
 
