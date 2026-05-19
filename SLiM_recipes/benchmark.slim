@@ -7,7 +7,7 @@ initialize() {
 
     map_file = readCSV(MAP_FILE_0, colNames=F);
     map_file = map_file.asMatrix();
-    map_file = sqrt(map_file^2 + 0.5*(1^2)); // convert sigma to sigma_f
+    map_file = sqrt(map_file^2 - 0.5*(1^2)); // convert sigma to sigma_f
     defineConstant("SD_vals", map_file);
     map_file = readCSV(MAP_FILE_1, colNames=F);
     map_file = map_file.asMatrix();
