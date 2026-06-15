@@ -63,17 +63,18 @@ def fit_curve(degree, x_pos, y_pos):
     current_pos = int(intercepts[0])
     previous_intercept = int(intercepts[0])
     for i in range(1, args.w):
-        if previous_intercept == 0 and intercepts[i] == 2:
+        if previous_intercept == 0 and intercepts[i] == 2:  # line fully-segments the map 
             num_segments += 1
             previous_intercept = int(intercepts[i])
-        elif previous_intercept == 2 and intercepts[i] == 0:
+        elif previous_intercept == 2 and intercepts[i] == 0:  # line fully-segments the map 
             num_segments += 1
             previous_intercept = int(intercepts[i])
-        elif current_pos == 1 and intercepts[i] != 1:
-            num_segments += 1            
+        elif current_pos == 1 and intercepts[i] != 1:  # e.g., line intercepts y-intercept
+            num_segments += 1
+            previous_intercept = int(intercepts[i])
         current_pos = int(intercepts[i])
 
-    # y intercept
+    # line intersects righthand side of map
     if intercepts[-1] == 1:
         num_segments += 1
     
@@ -98,7 +99,7 @@ def assign_values(num_segments, min_val, max_val):
 def map_segments(num_segments,intercepts):
     segment_map = []
     if num_segments == 1:
-        segment_map.append()
+        segment_map = [[0] for _ in range(int(args.w))]
     else:
         internal_loops = 0
         if intercepts[0] != 1:
@@ -148,7 +149,7 @@ def make_mat(segment_map, values, ys):
     for m in range(args.w):                                
         previous_pos = None 
         first_segment = True
-        for n in range(0, args.w):
+        for n in range(args.w):
             my_segments = segment_map[n]
             crossed_the_line = False
 
