@@ -154,7 +154,7 @@ python create_maps.py \
        --min_c2 4 \
        --max_c2 40 \
        --png \
-       --max_degree 3
+       --max_degree 2
 ```
 
 
