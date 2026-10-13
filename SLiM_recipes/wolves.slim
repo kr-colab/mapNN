@@ -13,8 +13,7 @@ initialize() {
     map_file = map_file.asMatrix();
     defineConstant("K_vals", map_file);
 
-    defineConstant("maxgens", 1000);
-    defineConstant("gens_b4_record", 100);     	
+    defineConstant("ticks", 1000);
     if (!exists("OUTNAME")) defineConstant("OUTNAME", "tempout1"); 	
     defineConstant("L", 4);    // mean lifetime at stationarity
     defineConstant("FECUN", 1/L); // mean fecundity
@@ -133,7 +132,7 @@ early() {
 
 1:999999999 late() {
     i2.evaluate(p1);
-    print(c("Finished generation", sim.cycle, "; N=", p1.individualCount));
+    print(c("Finished tick", sim.cycle, "; N=", p1.individualCount));
 
     // check if surviving
     if (p1.individualCount == 0){
@@ -142,7 +141,7 @@ early() {
     }
         
     // write output
-    if (sim.cycle == maxgens) {
+    if (sim.cycle == ticks) {
        writeFile(paste0(OUTNAME, "_", SEED, "_N.txt"), asString(p1.individualCount));
        sim.treeSeqOutput(paste(c(OUTNAME, "_", SEED,".trees"), sep=""));
        catn("Done.");

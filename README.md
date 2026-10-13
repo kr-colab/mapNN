@@ -180,7 +180,7 @@ slim \
      -d SEED=<int> \
      -d SI=<float> \
      -d SM=<float> \
-     -d maxgens=<int> \
+     -d ticks=<int> \
      benchmark.slim
 ```
 
@@ -190,7 +190,7 @@ slim \
 - `SEED`: random number seed
 - `SI`: interaction-sigma
 - `SM`: mating-sigma
-- `maxgens`: number of slim ticks before the end of simulation
+- `ticks`: number of slim ticks before the end of simulation
 
 
 First install SLiM:
@@ -208,19 +208,21 @@ slim \
      -d SEED=123 \
      -d SI=1 \
      -d SM=1 \
-     -d maxgens=10 \
+     -d ticks=10 \
      SLiM_recipes/benchmark.slim
 ```
 
 
-Presuming that not all trees have coalesced we will need to recapitate the tree sequence.
+Assuming that not all trees have coalesced we will need to recapitate the tree sequence.
+You must provide the generation time to convert time units from generations in msprime to ticks from SLiM: see the [PySlim docs](https://tskit.dev/pyslim/docs/latest/time_units.html) for instructions on measuring generation time in SLiM.
+In Smith et al. (2024) the time units were not converted (i.e., generation_time=1.0).
 For more information see the [msprime manual](https://tskit.dev/msprime/docs/stable/ancestry.html#continuing-forwards-time-simulations-recapitating) or [pyslim](https://tskit.dev/pyslim/docs/latest/tutorial.html#sec-tutorial-recapitation).
 
-This can be done using a function in the `mapNN` repo:
+The below example uses a function in the `mapNN` repo to recapitate using a generation time of 5.25 SLiM ticks:
 
 ```python
 from process_input import recap
-recap("tempout/sim_123.trees", "tempout/recap_123.trees", seed=123)
+recap("tempout/sim_123.trees", "tempout/recap_123.trees", generation_time=5.25, seed=123)
 ```
 
 
