@@ -4,15 +4,15 @@ import tskit, msprime
 
 
 # recapitation
-def recap(fp, op, seed=123):
+def recap(fp, op, generation_time, seed=123):
 
     # load
     ts = tskit.load(fp)
     alive_inds = []
     for i in ts.individuals():
         alive_inds.append(i.id)
-    # (unindent)
-    Ne = len(alive_inds)
+    #
+    N = len(alive_inds)
 
     # simplify to get rid of extraneous populations
     ts = ts.simplify(keep_input_roots=True) 
@@ -29,11 +29,11 @@ def recap(fp, op, seed=123):
         print("need to find the correct population ID",flush=True)
         exit()
     demography = msprime.Demography.from_tree_sequence(ts)
-    demography[pop_id].initial_size = Ne
+    demography[pop_id].initial_size = N * generation_time
     ts = msprime.sim_ancestry(
             initial_state=ts,
             demography=demography,
-            recombination_rate=1e-8,
+            recombination_rate=1e-8 / generation_time,
             random_seed=seed,
     )
 

@@ -13,8 +13,8 @@ initialize() {
     map_file = map_file.asMatrix();
     defineConstant("K_vals", map_file);
 
-    if (!exists("maxgens")) defineConstant("maxgens", 1000);
-    if (!exists("gens_b4_record")) defineConstant("gens_b4_record", 100);     	
+    if (!exists("ticks")) defineConstant("ticks", 1000);
+    if (!exists("ticks_b4_record")) defineConstant("ticks_b4_record", 100);     	
     if (!exists("OUTNAME")) defineConstant("OUTNAME", "tempout1"); 	
     defineConstant("L", 4);    // mean lifetime at stationarity
     defineConstant("G", 1e8);  // genome length
@@ -115,7 +115,7 @@ early() {
 
     // track density
     locs = asInteger(floor((inds.spatialPosition/W) * GRID_COARSENESS));  // finds pixel for each individual location
-    if (sim.cycle > gens_b4_record) {	
+    if (sim.cycle > ticks_b4_record) {	
         for (ind in seqLen(length(inds))) {
 	    i = locs[ind*2];
 	    j = locs[ind*2+1];
@@ -128,7 +128,7 @@ early() {
 // death
 survival() {
     if (!surviving) { // record data for dead individuals      
-        if (sim.cycle > gens_b4_record) {
+        if (sim.cycle > ticks_b4_record) {
 	    weighted_dist = individual.tagF*individual.tag;
     	    loc = asInteger(floor((individual.spatialPosition/W) * GRID_COARSENESS));
             i = loc[0];
@@ -143,7 +143,7 @@ survival() {
 
 1:999999999 late() {
     i2.evaluate(p1);
-    print(c("Finished generation", sim.cycle, "; N=", p1.individualCount));
+    print(c("Finished tick", sim.cycle, "; N=", p1.individualCount));
     
     // check if surviving
     if (p1.individualCount == 0){
@@ -152,9 +152,9 @@ survival() {
     }
         
     // write output
-    if (sim.cycle == maxgens) {
-       // mean density over all gens
-       De_means = De / asFloat(maxgens-gens_b4_record);
+    if (sim.cycle == ticks) {
+       // mean density over all ticks
+       De_means = De / asFloat(ticks-ticks_b4_record);
 
        // mean sigma over all dispersions
        for (i in seqLen(GRID_COARSENESS)){
